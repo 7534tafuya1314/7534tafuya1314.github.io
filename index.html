@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked@4.0.2/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Tailwind 配置 -->
     <script>
@@ -15,15 +16,14 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#4B7F52',      // 主色
-                        secondary: '#7D9D7F',    // 辅助色
-                        accent: '#A2CD5A',       // 强调色
-                        neutral: '#F5F5DC',      // 背景色
-                        dark: '#2F4F4F',         // 文字
+                        primary: '#4B7F52',      // 主色：深绿色
+                        secondary: '#7D9D7F',    // 辅助色：浅绿色
+                        accent: '#A2CD5A',       // 强调色：亮绿色
+                        neutral: '#F5F5DC',      // 背景色：米白色
+                        dark: '#2F4F4F',         // 文字色：深灰色
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
-                        serif: ['Georgia', 'Cambria', 'serif'],
                     },
                 }
             }
@@ -36,21 +36,34 @@
                 content-visibility: auto;
             }
             .blog-card {
-                @apply bg-white rounded-lg shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md;
+                @apply bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1;
             }
             .blog-button {
-                @apply bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-colors;
+                @apply bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-all duration-300 transform hover:scale-105 font-semibold;
             }
             .nav-link {
-                @apply px-3 py-2 rounded-md text-gray-700 hover:text-primary hover:bg-neutral/50 transition-colors;
+                @apply px-3 py-2 rounded-md text-gray-700 hover:text-primary hover:bg-neutral/50 transition-colors font-medium;
             }
             .category-pill {
-                @apply inline-block px-2 py-1 text-xs rounded-full bg-secondary/20 text-primary;
+                @apply inline-block px-2 py-1 text-xs rounded-full bg-secondary/20 text-primary font-medium;
+            }
+            .studio-card {
+                @apply bg-white rounded-xl shadow-md p-6 transition-all duration-300 hover:shadow-lg;
             }
         }
     </style>
     
     <style>
+        /* 全局字体设置 */
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+        }
+        
         /* 基础动画 */
         .fade-in {
             animation: fadeIn 0.5s ease-in-out;
@@ -76,7 +89,11 @@
         }
         
         .article-content img {
-            @apply max-w-full h-auto rounded-lg my-6 mx-auto block;
+            @apply max-w-full h-auto rounded-lg my-6 mx-auto block shadow-md;
+        }
+        
+        .article-content a {
+            @apply text-primary hover:text-primary/80 underline transition-colors;
         }
         
         .article-content ul, .article-content ol {
@@ -93,6 +110,14 @@
         
         .article-content blockquote {
             @apply border-l-4 border-primary pl-4 italic my-4 text-gray-600;
+        }
+        
+        .article-content pre {
+            @apply bg-gray-100 p-4 rounded-lg my-4 overflow-x-auto;
+        }
+        
+        .article-content code {
+            @apply bg-gray-100 px-1 rounded;
         }
         
         /* 加载动画 */
@@ -119,6 +144,11 @@
         .avatar-preview {
             cursor: pointer;
             position: relative;
+            transition: transform 0.3s ease;
+        }
+        
+        .avatar-preview:hover {
+            transform: scale(1.05);
         }
         
         .avatar-overlay {
@@ -142,12 +172,63 @@
         .edit-article-btn {
             @apply absolute top-3 right-3 bg-gray-800/70 text-white p-2 rounded-full hover:bg-gray-700 transition-colors opacity-0 hover:opacity-100;
         }
+        
+        /* 日历样式 */
+        .calendar-card {
+            @apply bg-white rounded-lg shadow-sm p-3 text-center mt-4;
+        }
+        
+        .calendar-month {
+            @apply text-sm font-semibold text-primary uppercase;
+        }
+        
+        .calendar-day {
+            @apply text-2xl font-bold text-dark;
+        }
+        
+        .calendar-weekday {
+            @apply text-xs text-gray-500 mt-1;
+        }
+        
+        /* 工作室样式优化 */
+        .studio-tabs {
+            @apply border-b flex overflow-x-auto;
+        }
+        
+        .studio-tab {
+            @apply px-6 py-3 font-semibold transition-all duration-300;
+        }
+        
+        .studio-tab.active {
+            @apply text-primary border-b-2 border-primary;
+        }
+        
+        .studio-tab:not(.active) {
+            @apply text-gray-500 hover:text-gray-700;
+        }
+        
+        .form-input {
+            @apply w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 font-medium;
+        }
+        
+        .form-label {
+            @apply block text-sm font-semibold text-gray-700 mb-1;
+        }
+        
+        /* 编辑器按钮样式 */
+        .editor-btn {
+            @apply p-1.5 hover:bg-gray-200 rounded transition-all duration-200 active:scale-95;
+        }
+        
+        .editor-btn:hover {
+            @apply bg-gray-200;
+        }
     </style>
 </head>
 
 <body class="bg-neutral min-h-screen text-dark">
     <!-- 顶部导航栏 -->
-    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm">
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-sm shadow-md">
         <div class="container mx-auto px-4">
             <div class="flex items-center justify-between h-16">
                 <!-- 网站Logo和名称 -->
@@ -179,9 +260,9 @@
             <!-- 左侧：文章列表 -->
             <div class="lg:w-2/3">
                 <!-- 分类筛选 -->
-                <div class="mb-8 bg-white p-4 rounded-lg shadow-sm hidden" id="categories-filter">
+                <div class="mb-8 bg-white p-4 rounded-lg shadow-sm" id="categories-filter">
                     <div class="flex flex-wrap gap-2">
-                        <button class="category-btn active px-3 py-1 rounded-full bg-primary text-white text-sm" data-category="all">
+                        <button class="category-btn active px-3 py-1 rounded-full bg-primary text-white text-sm font-medium" data-category="all">
                             全部文章
                         </button>
                         <!-- 分类将通过JS动态生成 -->
@@ -196,15 +277,15 @@
                         <p class="text-gray-500">暂无文章发布</p>
                     </div>
                     
-                    <!-- 加载状态和列表默认隐藏 -->
+                    <!-- 加载状态 -->
                     <div id="articles-loading" class="flex justify-center items-center py-16 bg-white rounded-lg shadow-sm hidden">
                         <div class="loader mr-3"></div>
                         <p class="text-gray-500">正在加载文章...</p>
                     </div>
                     
-                    <div id="articles-timeout" class="load-timeout bg-white rounded-lg shadow-sm hidden">
+                    <div id="articles-error" class="load-timeout bg-white rounded-lg shadow-sm hidden">
                         <i class="fa fa-exclamation-circle text-3xl mb-2 text-orange-500"></i>
-                        <p>文章加载超时，请稍后重试</p>
+                        <p>文章加载失败，请稍后重试</p>
                         <button id="retry-loading" class="mt-3 blog-button text-sm">
                             重试加载
                         </button>
@@ -219,20 +300,28 @@
             <!-- 右侧：侧边栏 -->
             <div class="lg:w-1/3 space-y-6">
                 <!-- 关于博主 -->
-                <div class="bg-white p-6 rounded-lg shadow-sm text-center">
-                    <div class="w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden border-2 border-primary avatar-preview" id="avatar-container">
+                <div class="bg-white p-6 rounded-lg shadow-sm text-center studio-card">
+                    <div class="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-2 border-primary avatar-preview" id="avatar-container">
                         <img src="https://picsum.photos/200/200?random=1" alt="博主头像" class="w-full h-full object-cover" id="avatar-image">
                         <div class="avatar-overlay hidden" id="avatar-overlay">
                             <i class="fa fa-camera"></i>
                         </div>
                         <input type="file" id="avatar-upload" accept="image/*" class="hidden">
                     </div>
-                    <h3 class="text-lg font-bold mb-2">哲思者</h3>
-                    <p class="text-gray-600 text-sm mb-4">热爱思考，观察世界，探寻事物本质与联系</p>
+                    
+                    <!-- 日历卡片 -->
+                    <div class="calendar-card">
+                        <div class="calendar-month" id="calendar-month">一月</div>
+                        <div class="calendar-day" id="calendar-day">1</div>
+                        <div class="calendar-weekday" id="calendar-weekday">星期一</div>
+                    </div>
+                    
+                    <h3 class="text-lg font-bold mt-6 mb-2" id="profile-name-display">哲思者</h3>
+                    <p class="text-gray-600 text-sm mb-4" id="profile-bio-display">热爱思考，观察世界，探寻事物本质与联系</p>
                 </div>
                 
                 <!-- 分类列表 -->
-                <div class="bg-white p-6 rounded-lg shadow-sm hidden" id="categories-list-container">
+                <div class="bg-white p-6 rounded-lg shadow-sm studio-card" id="categories-list-container">
                     <h3 class="text-lg font-bold mb-4 flex items-center">
                         <i class="fa fa-tags text-primary mr-2"></i>
                         文章分类
@@ -254,14 +343,14 @@
             </div>
             <p class="text-gray-600 mb-4">观察世界的点滴，探索生活的本质</p>
             <div class="text-sm text-gray-500">
-                &copy; <span id="current-year"></span> 哲理论 - 个人思考分享平台
+                &copy; <span id="current-year"></span> 哲理论 - 个人思考分享平台 | 内容存储于GitHub，全球共享
             </div>
         </div>
     </footer>
 
     <!-- 文章详情模态框 -->
     <div id="article-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col transform transition-all duration-300 scale-95 opacity-0" id="modal-content-wrapper">
             <!-- 模态框头部 -->
             <div class="p-6 border-b flex justify-between items-center">
                 <h3 id="modal-title" class="text-xl font-bold"></h3>
@@ -294,7 +383,7 @@
 
     <!-- 尘幕工作室登录 -->
     <div id="studio-login-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg max-w-md w-full p-6">
+        <div class="bg-white rounded-lg max-w-md w-full p-6 studio-card transform transition-all duration-300 scale-95 opacity-0" id="login-modal-content">
             <div class="flex items-center justify-center mb-5">
                 <i class="fa fa-lock text-3xl text-primary mr-2"></i>
                 <h3 class="text-xl font-bold">尘幕工作室验证</h3>
@@ -303,17 +392,17 @@
             <p class="text-gray-600 mb-4 text-center">请输入GitHub令牌以管理您的内容</p>
             
             <div class="mb-4">
-                <label for="github-token" class="block text-sm font-medium text-gray-700 mb-1">个人访问令牌</label>
+                <label for="github-token" class="form-label">个人访问令牌</label>
                 <input type="password" id="github-token" 
-                    class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    class="form-input"
                     placeholder="ghp_...">
                 <p class="text-xs text-gray-500 mt-1">需要 repo 权限以读写仓库内容</p>
             </div>
             
             <div class="mb-4">
-                <label for="repo-info" class="block text-sm font-medium text-gray-700 mb-1">仓库信息</label>
+                <label for="repo-info" class="form-label">仓库信息</label>
                 <input type="text" id="repo-info" 
-                    class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    class="form-input"
                     placeholder="用户名/仓库名" value="">
                 <div id="repo-detection" class="mt-2 hidden">
                     <div class="flex items-center">
@@ -327,7 +416,7 @@
                 <button id="save-credentials" class="flex-1 blog-button">
                     验证并进入
                 </button>
-                <button id="close-studio-login" class="px-4 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors">
+                <button id="close-studio-login" class="px-4 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors font-medium">
                     取消
                 </button>
             </div>
@@ -343,9 +432,9 @@
     </div>
 
     <!-- 尘幕工作室 -->
-    <div id="studio-panel" class="fixed inset-0 bg-white z-50 hidden flex flex-col">
+    <div id="studio-panel" class="fixed inset-0 bg-white z-50 hidden transform transition-all duration-300 translate-x-full" id="studio-panel-wrapper">
         <!-- 工作室头部 -->
-        <div class="border-b p-4 flex justify-between items-center">
+        <div class="border-b p-4 flex justify-between items-center bg-neutral/50">
             <div class="flex items-center">
                 <button id="exit-studio" class="p-2 mr-2 hover:bg-gray-100 rounded-full transition-colors">
                     <i class="fa fa-arrow-left"></i>
@@ -356,131 +445,138 @@
                 </h2>
             </div>
             <div class="flex items-center space-x-4">
-                <span id="repo-status" class="text-sm text-green-600 hidden"></span>
-                <button id="logout-studio" class="text-gray-500 hover:text-gray-700 text-sm">
+                <span id="repo-status" class="text-sm text-green-600 hidden bg-green-50 px-2 py-1 rounded-full"></span>
+                <button id="logout-studio" class="text-gray-500 hover:text-gray-700 text-sm font-medium">
                     <i class="fa fa-sign-out mr-1"></i> 退出
                 </button>
             </div>
         </div>
         
         <!-- 工作室功能选项卡 -->
-        <div class="border-b flex">
-            <button id="publish-tab-btn" class="px-6 py-3 font-medium text-primary border-b-2 border-primary">
+        <div class="studio-tabs">
+            <button id="publish-tab-btn" class="studio-tab active">
                 发布文章
             </button>
-            <button id="manage-tab-btn" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700">
+            <button id="manage-tab-btn" class="studio-tab">
                 管理文章
             </button>
-            <button id="profile-tab-btn" class="px-6 py-3 font-medium text-gray-500 hover:text-gray-700">
+            <button id="profile-tab-btn" class="studio-tab">
                 个人资料
             </button>
         </div>
         
         <!-- 工作室内容区 -->
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="flex-1 overflow-y-auto p-6 bg-neutral/30">
             <!-- 发布文章 -->
             <div class="studio-content" id="publish-tab">
-                <form id="publish-form" class="space-y-6">
-                    <div>
-                        <label for="article-title" class="block text-sm font-medium text-gray-700 mb-1">文章标题 <span class="text-red-500">*</span></label>
-                        <input type="text" id="article-title" required
-                            class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
-                    </div>
-                    
-                    <div>
-                        <label for="article-category" class="block text-sm font-medium text-gray-700 mb-1">分类 <span class="text-red-500">*</span></label>
-                        <div class="flex space-x-2">
-                            <select id="article-category" required
-                                class="flex-1 p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
-                                <option value="">选择分类</option>
-                                <!-- 分类将通过JS动态生成 -->
-                            </select>
-                            <button type="button" id="add-category-btn" class="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg transition-colors">
-                                <i class="fa fa-plus"></i>
+                <div class="studio-card">
+                    <h3 class="text-lg font-bold mb-6 pb-2 border-b">发布新文章</h3>
+                    <form id="publish-form" class="space-y-6">
+                        <div>
+                            <label for="article-title" class="form-label">文章标题 <span class="text-red-500">*</span></label>
+                            <input type="text" id="article-title" required
+                                class="form-input">
+                        </div>
+                        
+                        <div>
+                            <label for="article-category" class="form-label">分类 <span class="text-red-500">*</span></label>
+                            <div class="flex space-x-2">
+                                <select id="article-category" required
+                                    class="form-input">
+                                    <option value="">选择分类</option>
+                                    <!-- 分类将通过JS动态生成 -->
+                                </select>
+                                <button type="button" id="add-category-btn" class="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg transition-colors">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">文章内容 <span class="text-red-500">*</span></label>
+                            <div class="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                                <!-- 编辑器工具栏 -->
+                                <div class="bg-gray-50 border-b p-2 flex flex-wrap gap-1">
+                                    <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="bold" title="加粗">
+                                        <i class="fa fa-bold"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="italic" title="斜体">
+                                        <i class="fa fa-italic"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="link" title="链接">
+                                        <i class="fa fa-link"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="image" title="图片">
+                                        <i class="fa fa-image"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="heading" title="标题">
+                                        <i class="fa fa-header"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="list" title="列表">
+                                        <i class="fa fa-list-ul"></i>
+                                    </button>
+                                    <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="code" title="代码">
+                                        <i class="fa fa-code"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- 编辑器说明 -->
+                                <div class="bg-gray-50 p-2 text-xs text-gray-500 border-b">
+                                    支持 Markdown 格式编辑，图片和链接将自动同步到GitHub
+                                </div>
+                                
+                                <!-- 编辑器内容区 -->
+                                <textarea id="article-content" required rows="15"
+                                    class="w-full p-3 border-0 focus:outline-none resize-none font-medium"
+                                    placeholder="请输入文章内容..."></textarea>
+                                
+                                <!-- 预览区切换 -->
+                                <div class="bg-gray-50 p-2 flex justify-between items-center border-t">
+                                    <span class="text-xs text-gray-500">Shift + Enter 换行</span>
+                                    <button type="button" id="toggle-preview" class="text-xs text-primary hover:text-primary/80 font-medium">
+                                        预览
+                                    </button>
+                                </div>
+                                
+                                <!-- 预览区 -->
+                                <div id="preview-container" class="hidden p-3 bg-gray-50 border-t min-h-[300px]">
+                                    <div id="preview-content" class="article-content"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-3 pt-4 border-t">
+                            <button type="button" id="cancel-publish" class="px-6 py-2 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors font-medium">
+                                取消
+                            </button>
+                            <button type="submit" id="submit-article" class="blog-button">
+                                发布文章
                             </button>
                         </div>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">文章内容 <span class="text-red-500">*</span></label>
-                        <div class="border border-gray-200 rounded-lg overflow-hidden">
-                            <!-- 编辑器工具栏 -->
-                            <div class="bg-gray-50 border-b p-2 flex flex-wrap gap-1">
-                                <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="bold" title="加粗">
-                                    <i class="fa fa-bold"></i>
-                                </button>
-                                <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="italic" title="斜体">
-                                    <i class="fa fa-italic"></i>
-                                </button>
-                                <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="link" title="链接">
-                                    <i class="fa fa-link"></i>
-                                </button>
-                                <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="image" title="图片">
-                                    <i class="fa fa-image"></i>
-                                </button>
-                                <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="heading" title="标题">
-                                    <i class="fa fa-header"></i>
-                                </button>
-                                <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="list" title="列表">
-                                    <i class="fa fa-list-ul"></i>
-                                </button>
-                                <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="code" title="代码">
-                                    <i class="fa fa-code"></i>
-                                </button>
-                            </div>
-                            
-                            <!-- 编辑器说明 -->
-                            <div class="bg-gray-50 p-2 text-xs text-gray-500 border-b">
-                                支持 Markdown 格式编辑
-                            </div>
-                            
-                            <!-- 编辑器内容区 -->
-                            <textarea id="article-content" required rows="15"
-                                class="w-full p-3 border-0 focus:outline-none resize-none"
-                                placeholder="请输入文章内容..."></textarea>
-                            
-                            <!-- 预览区切换 -->
-                            <div class="bg-gray-50 p-2 flex justify-between items-center border-t">
-                                <span class="text-xs text-gray-500">Shift + Enter 换行</span>
-                                <button type="button" id="toggle-preview" class="text-xs text-primary hover:text-primary/80">
-                                    预览
-                                </button>
-                            </div>
-                            
-                            <!-- 预览区 -->
-                            <div id="preview-container" class="hidden p-3 bg-gray-50 border-t min-h-[300px]">
-                                <div id="preview-content" class="article-content"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end space-x-3 pt-4 border-t">
-                        <button type="button" id="cancel-publish" class="px-6 py-2 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors">
-                            取消
-                        </button>
-                        <button type="submit" id="submit-article" class="blog-button">
-                            发布文章
-                        </button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
             
             <!-- 管理文章 -->
             <div class="studio-content hidden" id="manage-tab">
-                <div id="no-articles-manage" class="text-center py-16 bg-gray-50 rounded-lg">
-                    <i class="fa fa-file-text-o text-5xl text-gray-300 mb-4"></i>
-                    <p class="text-gray-500">暂无文章可管理</p>
-                </div>
-                
-                <div id="articles-manage-list" class="space-y-4 hidden">
-                    <!-- 管理文章列表将通过JS动态生成 -->
+                <div class="studio-card">
+                    <h3 class="text-lg font-bold mb-6 pb-2 border-b">管理文章</h3>
+                    
+                    <div id="no-articles-manage" class="text-center py-16 bg-gray-50 rounded-lg">
+                        <i class="fa fa-file-text-o text-5xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500">暂无文章可管理</p>
+                    </div>
+                    
+                    <div id="articles-manage-list" class="space-y-4 hidden">
+                        <!-- 管理文章列表将通过JS动态生成 -->
+                    </div>
                 </div>
             </div>
             
             <!-- 个人资料 -->
             <div class="studio-content hidden" id="profile-tab">
-                <div class="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 class="text-lg font-bold mb-6">个人资料设置</h3>
+                <div class="studio-card">
+                    <h3 class="text-lg font-bold mb-6 pb-2 border-b">个人资料设置</h3>
                     
                     <div class="mb-6 text-center">
                         <div class="w-32 h-32 mx-auto mb-4 rounded-full overflow-hidden border-2 border-primary avatar-preview" id="studio-avatar-container">
@@ -495,15 +591,16 @@
                     
                     <div class="space-y-4">
                         <div>
-                            <label for="profile-name" class="block text-sm font-medium text-gray-700 mb-1">名称</label>
+                            <label for="profile-name" class="form-label">名称</label>
                             <input type="text" id="profile-name" value="哲思者"
-                                class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+                                class="form-input">
                         </div>
                         
                         <div>
-                            <label for="profile-bio" class="block text-sm font-medium text-gray-700 mb-1">个人简介</label>
+                            <label for="profile-bio" class="form-label">个人简介</label>
                             <textarea id="profile-bio" rows="3"
-                                class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">热爱思考，观察世界，探寻事物本质与联系</textarea>
+                                class="form-input"
+                                placeholder="输入个人简介...">热爱思考，观察世界，探寻事物本质与联系</textarea>
                         </div>
                         
                         <div class="flex justify-end pt-4 border-t">
@@ -519,13 +616,13 @@
 
     <!-- 添加分类模态框 -->
     <div id="new-category-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg max-w-sm w-full p-6">
+        <div class="bg-white rounded-lg max-w-sm w-full p-6 studio-card transform transition-all duration-300 scale-95 opacity-0" id="category-modal-content">
             <h3 class="text-lg font-bold mb-4">添加新分类</h3>
             
             <div class="mb-4">
-                <label for="category-name" class="block text-sm font-medium text-gray-700 mb-1">分类名称</label>
+                <label for="category-name" class="form-label">分类名称</label>
                 <input type="text" id="category-name" 
-                    class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    class="form-input"
                     placeholder="输入分类名称">
             </div>
             
@@ -533,7 +630,7 @@
                 <button id="confirm-category" class="flex-1 blog-button">
                     确认添加
                 </button>
-                <button id="cancel-category" class="px-4 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors">
+                <button id="cancel-category" class="px-4 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors font-medium">
                     取消
                 </button>
             </div>
@@ -542,7 +639,7 @@
 
     <!-- 文章编辑模态框 -->
     <div id="edit-article-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col transform transition-all duration-300 scale-95 opacity-0" id="edit-modal-content-wrapper">
             <!-- 模态框头部 -->
             <div class="p-6 border-b flex justify-between items-center">
                 <h3 class="text-xl font-bold">编辑文章</h3>
@@ -557,16 +654,16 @@
                     <input type="hidden" id="edit-article-id">
                     
                     <div>
-                        <label for="edit-article-title" class="block text-sm font-medium text-gray-700 mb-1">文章标题 <span class="text-red-500">*</span></label>
+                        <label for="edit-article-title" class="form-label">文章标题 <span class="text-red-500">*</span></label>
                         <input type="text" id="edit-article-title" required
-                            class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+                            class="form-input">
                     </div>
                     
                     <div>
-                        <label for="edit-article-category" class="block text-sm font-medium text-gray-700 mb-1">分类 <span class="text-red-500">*</span></label>
+                        <label for="edit-article-category" class="form-label">分类 <span class="text-red-500">*</span></label>
                         <div class="flex space-x-2">
                             <select id="edit-article-category" required
-                                class="flex-1 p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+                                class="form-input">
                                 <option value="">选择分类</option>
                                 <!-- 分类将通过JS动态生成 -->
                             </select>
@@ -577,8 +674,8 @@
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">文章内容 <span class="text-red-500">*</span></label>
-                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <label class="form-label">文章内容 <span class="text-red-500">*</span></label>
+                        <div class="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
                             <!-- 编辑器工具栏 -->
                             <div class="bg-gray-50 border-b p-2 flex flex-wrap gap-1">
                                 <button type="button" class="editor-btn p-1.5 hover:bg-gray-200 rounded" data-action="bold" title="加粗">
@@ -606,7 +703,7 @@
                             
                             <!-- 编辑器内容区 -->
                             <textarea id="edit-article-content" required rows="15"
-                                class="w-full p-3 border-0 focus:outline-none resize-none"
+                                class="w-full p-3 border-0 focus:outline-none resize-none font-medium"
                                 placeholder="请输入文章内容..."></textarea>
                         </div>
                     </div>
@@ -615,10 +712,10 @@
             
             <!-- 底部按钮 -->
             <div class="p-6 border-t flex justify-end space-x-3">
-                <button id="delete-article-btn" class="px-6 py-2 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors">
+                <button id="delete-article-btn" class="px-6 py-2 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium">
                     <i class="fa fa-trash mr-1"></i> 删除文章
                 </button>
-                <button id="cancel-edit" class="px-6 py-2 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors">
+                <button id="cancel-edit" class="px-6 py-2 border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors font-medium">
                     取消
                 </button>
                 <button id="save-edited-article" class="blog-button">
@@ -635,10 +732,31 @@
         // 存储数据的变量
         let articles = [];
         let categories = [];
+        let profile = {
+            name: "哲思者",
+            bio: "热爱思考，观察世界，探寻事物本质与联系",
+            avatar: "https://picsum.photos/200/200?random=1"
+        };
         let isAuthenticated = false;
+        let githubToken = '';
+        let repoInfo = '';
+        
+        // 初始化日历
+        function initCalendar() {
+            const now = new Date();
+            const months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+            const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            
+            document.getElementById('calendar-month').textContent = months[now.getMonth()];
+            document.getElementById('calendar-day').textContent = now.getDate();
+            document.getElementById('calendar-weekday').textContent = weekdays[now.getDay()];
+        }
         
         // DOM 加载完成后初始化
         document.addEventListener('DOMContentLoaded', () => {
+            // 初始化日历
+            initCalendar();
+            
             // 绑定工作室按钮点击事件
             bindStudioButton();
             
@@ -646,8 +764,9 @@
             checkAuthStatus();
             
             // 加载文章和分类
-            loadArticles();
-            loadCategories();
+            loadArticlesFromGitHub();
+            loadCategoriesFromGitHub();
+            loadProfileFromGitHub();
             
             // 初始化工作室选项卡切换
             initStudioTabs();
@@ -663,12 +782,68 @@
             
             // 绑定分类相关事件
             bindCategoryEvents();
+            
+            // 为模态框添加动画效果
+            initModalAnimations();
         });
         
-        // 绑定工作室按钮点击事件 - 修复弹窗不显示问题
+        // 初始化模态框动画
+        function initModalAnimations() {
+            // 文章详情模态框
+            const articleModal = document.getElementById('article-modal');
+            const modalContent = document.getElementById('modal-content-wrapper');
+            
+            articleModal.addEventListener('transitionend', () => {
+                if (articleModal.classList.contains('hidden')) return;
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            });
+            
+            // 登录模态框
+            const loginModal = document.getElementById('studio-login-modal');
+            const loginContent = document.getElementById('login-modal-content');
+            
+            loginModal.addEventListener('transitionend', () => {
+                if (loginModal.classList.contains('hidden')) return;
+                loginContent.classList.remove('scale-95', 'opacity-0');
+                loginContent.classList.add('scale-100', 'opacity-100');
+            });
+            
+            // 工作室面板
+            const studioPanel = document.getElementById('studio-panel');
+            const studioContent = document.getElementById('studio-panel-wrapper');
+            
+            studioPanel.addEventListener('transitionend', () => {
+                if (studioPanel.classList.contains('hidden')) return;
+                studioContent.classList.remove('translate-x-full');
+                studioContent.classList.add('translate-x-0');
+            });
+            
+            // 分类模态框
+            const categoryModal = document.getElementById('new-category-modal');
+            const categoryContent = document.getElementById('category-modal-content');
+            
+            categoryModal.addEventListener('transitionend', () => {
+                if (categoryModal.classList.contains('hidden')) return;
+                categoryContent.classList.remove('scale-95', 'opacity-0');
+                categoryContent.classList.add('scale-100', 'opacity-100');
+            });
+            
+            // 编辑文章模态框
+            const editModal = document.getElementById('edit-article-modal');
+            const editContent = document.getElementById('edit-modal-content-wrapper');
+            
+            editModal.addEventListener('transitionend', () => {
+                if (editModal.classList.contains('hidden')) return;
+                editContent.classList.remove('scale-95', 'opacity-0');
+                editContent.classList.add('scale-100', 'opacity-100');
+            });
+        }
+        
+        // 绑定工作室按钮点击事件
         function bindStudioButton() {
             document.getElementById('studio-btn').addEventListener('click', () => {
-                // 强制显示验证弹窗，无论是否已认证
+                // 显示验证弹窗
                 document.getElementById('studio-login-modal').classList.remove('hidden');
                 
                 // 清空之前的输入，避免残留信息
@@ -687,24 +862,34 @@
             const repo = localStorage.getItem('repoInfo');
             
             if (token && repo) {
+                githubToken = token;
+                repoInfo = repo;
                 isAuthenticated = true;
                 // 显示编辑按钮
                 document.getElementById('edit-article-btn').classList.remove('hidden');
                 // 显示头像上传覆盖层
                 document.getElementById('avatar-overlay').classList.remove('hidden');
+                // 显示仓库状态
+                document.getElementById('repo-status').textContent = `已连接: ${repo}`;
+                document.getElementById('repo-status').classList.remove('hidden');
             }
         }
         
-        // 加载文章
-        function loadArticles() {
+        // 从GitHub加载文章
+        function loadArticlesFromGitHub() {
             // 显示加载状态
             document.getElementById('no-articles').classList.add('hidden');
             document.getElementById('articles-loading').classList.remove('hidden');
+            document.getElementById('articles-error').classList.add('hidden');
             
-            // 模拟API请求延迟
-            setTimeout(() => {
-                // 实际应用中应该从GitHub仓库加载文章
-                // 这里使用本地存储模拟
+            // 检查是否有仓库信息
+            const savedRepo = localStorage.getItem('repoInfo');
+            if (savedRepo) {
+                repoInfo = savedRepo;
+                // 尝试从GitHub加载
+                fetchArticlesFromGitHub();
+            } else {
+                // 没有仓库信息，尝试从本地存储加载（如果有）
                 const savedArticles = localStorage.getItem('philosophyArticles');
                 articles = savedArticles ? JSON.parse(savedArticles) : [];
                 
@@ -727,19 +912,268 @@
                 
                 // 更新管理文章标签页
                 updateManageArticlesUI();
-                
-            }, 800);
+            }
         }
         
-        // 加载分类
-        function loadCategories() {
-            // 实际应用中应该从GitHub仓库加载分类
-            // 这里使用本地存储模拟
-            const savedCategories = localStorage.getItem('philosophyCategories');
-            categories = savedCategories ? JSON.parse(savedCategories) : [];
+        // 从GitHub API获取文章
+        function fetchArticlesFromGitHub() {
+            if (!repoInfo) return;
             
-            // 更新UI
+            const [owner, repoName] = repoInfo.split('/');
+            const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/articles`;
+            
+            // 尝试使用认证令牌（如果有）
+            const headers = {};
+            if (githubToken) {
+                headers['Authorization'] = `token ${githubToken}`;
+            }
+            
+            fetch(apiUrl, { headers })
+                .then(response => {
+                    if (!response.ok) {
+                        // 如果是404，说明articles目录不存在，视为没有文章
+                        if (response.status === 404) return [];
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(files => {
+                    // 过滤出.md文件
+                    const mdFiles = files.filter(file => file.name.endsWith('.md'));
+                    
+                    // 并行获取所有文章内容
+                    return Promise.all(mdFiles.map(file => {
+                        return fetch(file.download_url)
+                            .then(response => response.text())
+                            .then(content => {
+                                // 解析文章元数据和内容
+                                const metadataMatch = content.match(/---([\s\S]*?)---/);
+                                let metadata = {};
+                                let articleContent = content.replace(/---[\s\S]*?---/, '').trim();
+                                
+                                if (metadataMatch && metadataMatch[1]) {
+                                    const metadataLines = metadataMatch[1].split('\n');
+                                    metadataLines.forEach(line => {
+                                        const [key, value] = line.split(':').map(item => item.trim());
+                                        if (key && value) {
+                                            metadata[key] = value.replace(/"/g, '');
+                                        }
+                                    });
+                                }
+                                
+                                return {
+                                    id: file.name.replace('.md', ''),
+                                    title: metadata.title || '未命名文章',
+                                    category: metadata.category || '未分类',
+                                    date: metadata.date || new Date(file.updated_at).toISOString(),
+                                    content: articleContent,
+                                    preview: articleContent.substring(0, 150).replace(/\n/g, ' ') + (articleContent.length > 150 ? '...' : '')
+                                };
+                            });
+                    }));
+                })
+                .then(fetchedArticles => {
+                    // 按日期排序，最新的在前
+                    articles = fetchedArticles.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    
+                    // 缓存到本地存储
+                    localStorage.setItem('philosophyArticles', JSON.stringify(articles));
+                    
+                    // 更新UI
+                    updateArticlesUI();
+                    
+                    // 隐藏加载状态
+                    document.getElementById('articles-loading').classList.add('hidden');
+                    
+                    // 如果有文章，显示文章列表，否则显示无文章状态
+                    if (articles.length > 0) {
+                        document.getElementById('articles-list').classList.remove('hidden');
+                        document.getElementById('categories-filter').classList.remove('hidden');
+                        document.getElementById('categories-list-container').classList.remove('hidden');
+                    } else {
+                        document.getElementById('no-articles').classList.remove('hidden');
+                        document.getElementById('categories-filter').classList.add('hidden');
+                        document.getElementById('categories-list-container').classList.add('hidden');
+                    }
+                    
+                    // 更新管理文章标签页
+                    updateManageArticlesUI();
+                })
+                .catch(error => {
+                    console.error('从GitHub加载文章失败:', error);
+                    
+                    // 尝试从本地存储加载
+                    const savedArticles = localStorage.getItem('philosophyArticles');
+                    articles = savedArticles ? JSON.parse(savedArticles) : [];
+                    
+                    // 更新UI
+                    updateArticlesUI();
+                    
+                    // 隐藏加载状态，显示错误信息
+                    document.getElementById('articles-loading').classList.add('hidden');
+                    document.getElementById('articles-error').classList.remove('hidden');
+                    
+                    // 如果有文章，显示文章列表
+                    if (articles.length > 0) {
+                        document.getElementById('articles-list').classList.remove('hidden');
+                        document.getElementById('categories-filter').classList.remove('hidden');
+                        document.getElementById('categories-list-container').classList.remove('hidden');
+                    } else {
+                        document.getElementById('no-articles').classList.remove('hidden');
+                    }
+                });
+        }
+        
+        // 从GitHub加载分类
+        function loadCategoriesFromGitHub() {
+            if (!repoInfo) {
+                // 没有仓库信息，尝试从本地存储加载
+                const savedCategories = localStorage.getItem('philosophyCategories');
+                categories = savedCategories ? JSON.parse(savedCategories) : [];
+                updateCategoriesUI();
+                return;
+            }
+            
+            const [owner, repoName] = repoInfo.split('/');
+            const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/categories.json`;
+            
+            // 尝试使用认证令牌（如果有）
+            const headers = {};
+            if (githubToken) {
+                headers['Authorization'] = `token ${githubToken}`;
+            }
+            
+            fetch(apiUrl, { headers })
+                .then(response => {
+                    if (!response.ok) {
+                        // 如果是404，说明分类文件不存在
+                        if (response.status === 404) return null;
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data) {
+                        // 分类文件不存在，从文章中提取分类
+                        extractCategoriesFromArticles();
+                        return;
+                    }
+                    
+                    // 解码内容
+                    const content = atob(data.content);
+                    const categoriesData = JSON.parse(content);
+                    
+                    // 提取分类名称
+                    categories = categoriesData.map(item => item.name);
+                    
+                    // 缓存到本地存储
+                    localStorage.setItem('philosophyCategories', JSON.stringify(categories));
+                    
+                    // 更新UI
+                    updateCategoriesUI();
+                })
+                .catch(error => {
+                    console.error('从GitHub加载分类失败:', error);
+                    
+                    // 尝试从本地存储加载
+                    const savedCategories = localStorage.getItem('philosophyCategories');
+                    if (savedCategories) {
+                        categories = JSON.parse(savedCategories);
+                        updateCategoriesUI();
+                    } else {
+                        // 从文章中提取分类
+                        extractCategoriesFromArticles();
+                    }
+                });
+        }
+        
+        // 从文章中提取分类
+        function extractCategoriesFromArticles() {
+            const articleCategories = [...new Set(articles.map(article => article.category))];
+            categories = articleCategories;
+            localStorage.setItem('philosophyCategories', JSON.stringify(categories));
             updateCategoriesUI();
+        }
+        
+        // 从GitHub加载个人资料
+        function loadProfileFromGitHub() {
+            if (!repoInfo) {
+                // 没有仓库信息，尝试从本地存储加载
+                const savedProfile = localStorage.getItem('philosophyProfile');
+                if (savedProfile) {
+                    profile = JSON.parse(savedProfile);
+                    updateProfileUI();
+                }
+                return;
+            }
+            
+            const [owner, repoName] = repoInfo.split('/');
+            const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/profile.json`;
+            
+            // 尝试使用认证令牌（如果有）
+            const headers = {};
+            if (githubToken) {
+                headers['Authorization'] = `token ${githubToken}`;
+            }
+            
+            fetch(apiUrl, { headers })
+                .then(response => {
+                    if (!response.ok) {
+                        // 如果是404，说明个人资料文件不存在
+                        if (response.status === 404) return null;
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data) {
+                        // 个人资料文件不存在，使用默认值
+                        const savedProfile = localStorage.getItem('philosophyProfile');
+                        if (savedProfile) {
+                            profile = JSON.parse(savedProfile);
+                        }
+                        updateProfileUI();
+                        return;
+                    }
+                    
+                    // 解码内容
+                    const content = atob(data.content);
+                    const profileData = JSON.parse(content);
+                    
+                    // 更新个人资料
+                    profile = { ...profile, ...profileData };
+                    
+                    // 同时加载头像
+                    if (profile.avatar) {
+                        fetch(profile.avatar)
+                            .then(response => response.ok ? response.blob() : Promise.reject())
+                            .then(blob => {
+                                const avatarUrl = URL.createObjectURL(blob);
+                                profile.avatarUrl = avatarUrl;
+                                updateProfileUI();
+                            })
+                            .catch(() => {
+                                // 头像加载失败，使用默认头像
+                                updateProfileUI();
+                            });
+                    }
+                    
+                    // 缓存到本地存储
+                    localStorage.setItem('philosophyProfile', JSON.stringify(profile));
+                    
+                    // 更新UI
+                    updateProfileUI();
+                })
+                .catch(error => {
+                    console.error('从GitHub加载个人资料失败:', error);
+                    
+                    // 尝试从本地存储加载
+                    const savedProfile = localStorage.getItem('philosophyProfile');
+                    if (savedProfile) {
+                        profile = JSON.parse(savedProfile);
+                    }
+                    updateProfileUI();
+                });
         }
         
         // 更新文章UI
@@ -762,7 +1196,7 @@
                     <p class="text-gray-600 mb-4 line-clamp-3">${article.preview}</p>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-500">${formatDate(article.date)}</span>
-                        <button class="text-primary hover:text-primary/80 read-more-btn" data-id="${article.id}">
+                        <button class="text-primary hover:text-primary/80 read-more-btn font-medium" data-id="${article.id}">
                             阅读全文 <i class="fa fa-arrow-right ml-1"></i>
                         </button>
                     </div>
@@ -774,7 +1208,8 @@
                 articlesList.appendChild(articleCard);
                 
                 // 绑定阅读全文事件
-                articleCard.querySelector('.read-more-btn').addEventListener('click', () => {
+                const readMoreBtn = articleCard.querySelector('.read-more-btn');
+                readMoreBtn.addEventListener('click', () => {
                     openArticleModal(article);
                 });
                 
@@ -805,7 +1240,7 @@
             // 添加分类按钮
             categories.forEach(category => {
                 const categoryBtn = document.createElement('button');
-                categoryBtn.className = 'category-btn px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-sm hover:bg-primary hover:text-white transition-colors';
+                categoryBtn.className = 'category-btn px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-sm font-medium hover:bg-primary hover:text-white transition-colors';
                 categoryBtn.setAttribute('data-category', category);
                 categoryBtn.textContent = category;
                 
@@ -834,15 +1269,11 @@
                 const categoryItem = document.createElement('div');
                 categoryItem.className = 'flex justify-between items-center p-2 hover:bg-gray-50 rounded';
                 
-                const categoryLink = document.createElement('span');
-                categoryLink.className = 'cursor-pointer hover:text-primary transition-colors';
-                categoryLink.textContent = category;
-                
                 // 计算该分类下的文章数量
                 const count = articles.filter(article => article.category === category).length;
                 
                 categoryItem.innerHTML = `
-                    <span class="cursor-pointer hover:text-primary transition-colors">${category}</span>
+                    <span class="cursor-pointer hover:text-primary transition-colors font-medium">${category}</span>
                     <span class="text-xs bg-gray-100 px-2 py-0.5 rounded-full">${count}</span>
                 `;
                 
@@ -902,6 +1333,16 @@
             if (editCurrentValue) editCategorySelect.value = editCurrentValue;
         }
         
+        // 更新个人资料UI
+        function updateProfileUI() {
+            document.getElementById('profile-name-display').textContent = profile.name;
+            document.getElementById('profile-bio-display').textContent = profile.bio;
+            document.getElementById('avatar-image').src = profile.avatarUrl || profile.avatar;
+            document.getElementById('studio-avatar-image').src = profile.avatarUrl || profile.avatar;
+            document.getElementById('profile-name').value = profile.name;
+            document.getElementById('profile-bio').value = profile.bio;
+        }
+        
         // 更新管理文章UI
         function updateManageArticlesUI() {
             const manageList = document.getElementById('articles-manage-list');
@@ -919,7 +1360,7 @@
             
             articles.forEach(article => {
                 const articleItem = document.createElement('div');
-                articleItem.className = 'bg-white p-4 rounded-lg shadow-sm flex justify-between items-center';
+                articleItem.className = 'bg-white p-4 rounded-lg shadow-sm flex justify-between items-center hover:shadow-md transition-shadow';
                 articleItem.innerHTML = `
                     <div>
                         <h4 class="font-medium">${article.title}</h4>
@@ -929,10 +1370,10 @@
                         </div>
                     </div>
                     <div class="flex space-x-2">
-                        <button class="edit-manage-btn p-2 hover:bg-gray-100 rounded transition-colors" data-id="${article.id}">
+                        <button class="edit-manage-btn p-2 hover:bg-gray-100 rounded transition-colors" data-id="${article.id}" title="编辑">
                             <i class="fa fa-pencil"></i>
                         </button>
-                        <button class="delete-manage-btn p-2 hover:bg-gray-100 rounded transition-colors text-red-500" data-id="${article.id}">
+                        <button class="delete-manage-btn p-2 hover:bg-gray-100 rounded transition-colors text-red-500" data-id="${article.id}" title="删除">
                             <i class="fa fa-trash"></i>
                         </button>
                     </div>
@@ -964,6 +1405,7 @@
             // 存储当前文章ID，用于编辑功能
             document.getElementById('edit-article-btn').setAttribute('data-id', article.id);
             
+            // 显示模态框（动画会在transitionend事件中触发）
             document.getElementById('article-modal').classList.remove('hidden');
         }
         
@@ -974,6 +1416,7 @@
             document.getElementById('edit-article-content').value = article.content;
             document.getElementById('edit-article-category').value = article.category;
             
+            // 显示模态框（动画会在transitionend事件中触发）
             document.getElementById('edit-article-modal').classList.remove('hidden');
         }
         
@@ -989,13 +1432,13 @@
                 item.btn.addEventListener('click', () => {
                     // 更新按钮状态
                     tabBtns.forEach(btn => {
-                        btn.btn.classList.remove('text-primary', 'border-b-2', 'border-primary');
+                        btn.btn.classList.remove('active', 'text-primary', 'border-b-2', 'border-primary');
                         btn.btn.classList.add('text-gray-500');
                         btn.content.classList.add('hidden');
                     });
                     
                     item.btn.classList.remove('text-gray-500');
-                    item.btn.classList.add('text-primary', 'border-b-2', 'border-primary');
+                    item.btn.classList.add('active', 'text-primary', 'border-b-2', 'border-primary');
                     item.content.classList.remove('hidden');
                 });
             });
@@ -1019,19 +1462,15 @@
                         studioAvatarImage.src = e.target.result;
                         document.getElementById('avatar-image').src = e.target.result;
                         
-                        // 保存到本地存储
-                        localStorage.setItem('philosophyAvatar', e.target.result);
+                        // 更新本地个人资料
+                        profile.avatarUrl = e.target.result;
+                        
+                        // 上传到GitHub
+                        uploadAvatarToGitHub(e.target.result);
                     };
                     reader.readAsDataURL(e.target.files[0]);
                 }
             });
-            
-            // 检查是否有保存的头像
-            const savedAvatar = localStorage.getItem('philosophyAvatar');
-            if (savedAvatar) {
-                studioAvatarImage.src = savedAvatar;
-                document.getElementById('avatar-image').src = savedAvatar;
-            }
             
             // 主页面的头像上传（仅当已认证）
             const avatarContainer = document.getElementById('avatar-container');
@@ -1050,8 +1489,11 @@
                         document.getElementById('avatar-image').src = e.target.result;
                         studioAvatarImage.src = e.target.result;
                         
-                        // 保存到本地存储
-                        localStorage.setItem('philosophyAvatar', e.target.result);
+                        // 更新本地个人资料
+                        profile.avatarUrl = e.target.result;
+                        
+                        // 上传到GitHub
+                        uploadAvatarToGitHub(e.target.result);
                     };
                     reader.readAsDataURL(e.target.files[0]);
                 }
@@ -1062,9 +1504,15 @@
         function bindStudioEvents() {
             // 关闭工作室登录
             document.getElementById('close-studio-login').addEventListener('click', () => {
-                document.getElementById('studio-login-modal').classList.add('hidden');
-                document.getElementById('login-error').classList.add('hidden');
-                document.getElementById('login-success').classList.add('hidden');
+                const loginContent = document.getElementById('login-modal-content');
+                loginContent.classList.remove('scale-100', 'opacity-100');
+                loginContent.classList.add('scale-95', 'opacity-0');
+                
+                setTimeout(() => {
+                    document.getElementById('studio-login-modal').classList.add('hidden');
+                    document.getElementById('login-error').classList.add('hidden');
+                    document.getElementById('login-success').classList.add('hidden');
+                }, 300);
             });
             
             // 当用户输入令牌时，尝试自动检测仓库信息
@@ -1104,20 +1552,30 @@
                             localStorage.setItem('repoInfo', repo);
                             
                             // 更新认证状态
+                            githubToken = token;
+                            repoInfo = repo;
                             isAuthenticated = true;
                             checkAuthStatus();
-                            updateManageArticlesUI();
+                            
+                            // 重新加载数据
+                            loadArticlesFromGitHub();
+                            loadCategoriesFromGitHub();
+                            loadProfileFromGitHub();
                             
                             // 延迟显示工作室面板，让用户看到成功提示
                             setTimeout(() => {
-                                document.getElementById('studio-login-modal').classList.add('hidden');
-                                document.getElementById('studio-panel').classList.remove('hidden');
-                                document.getElementById('repo-status').textContent = `已连接: ${repo}`;
-                                document.getElementById('repo-status').classList.remove('hidden');
+                                const loginContent = document.getElementById('login-modal-content');
+                                loginContent.classList.remove('scale-100', 'opacity-100');
+                                loginContent.classList.add('scale-95', 'opacity-0');
                                 
-                                // 恢复按钮状态
-                                document.getElementById('save-credentials').disabled = false;
-                                document.getElementById('save-credentials').innerHTML = '验证并进入';
+                                setTimeout(() => {
+                                    document.getElementById('studio-login-modal').classList.add('hidden');
+                                    document.getElementById('studio-panel').classList.remove('hidden');
+                                    
+                                    // 恢复按钮状态
+                                    document.getElementById('save-credentials').disabled = false;
+                                    document.getElementById('save-credentials').innerHTML = '验证并进入';
+                                }, 300);
                             }, 1500);
                         } else {
                             // 验证失败
@@ -1141,22 +1599,36 @@
             
             // 退出工作室
             document.getElementById('exit-studio').addEventListener('click', () => {
-                document.getElementById('studio-panel').classList.add('hidden');
+                const studioContent = document.getElementById('studio-panel-wrapper');
+                studioContent.classList.remove('translate-x-0');
+                studioContent.classList.add('translate-x-full');
+                
+                setTimeout(() => {
+                    document.getElementById('studio-panel').classList.add('hidden');
+                }, 300);
             });
             
             // 工作室登出
             document.getElementById('logout-studio').addEventListener('click', () => {
-                document.getElementById('studio-panel').classList.add('hidden');
-                document.getElementById('github-token').value = '';
-                localStorage.removeItem('githubToken');
-                localStorage.removeItem('repoInfo');
+                const studioContent = document.getElementById('studio-panel-wrapper');
+                studioContent.classList.remove('translate-x-0');
+                studioContent.classList.add('translate-x-full');
                 
-                // 更新认证状态
-                isAuthenticated = false;
-                checkAuthStatus();
-                
-                // 显示登录弹窗
-                document.getElementById('studio-login-modal').classList.remove('hidden');
+                setTimeout(() => {
+                    document.getElementById('studio-panel').classList.add('hidden');
+                    document.getElementById('github-token').value = '';
+                    localStorage.removeItem('githubToken');
+                    localStorage.removeItem('repoInfo');
+                    
+                    // 更新认证状态
+                    githubToken = '';
+                    repoInfo = '';
+                    isAuthenticated = false;
+                    checkAuthStatus();
+                    
+                    // 显示登录弹窗
+                    document.getElementById('studio-login-modal').classList.remove('hidden');
+                }, 300);
             });
             
             // 取消发布
@@ -1194,31 +1666,41 @@
                         date: new Date().toISOString()
                     };
                     
-                    // 添加到文章列表
+                    // 先更新本地UI
                     articles.unshift(newArticle);
-                    
-                    // 保存到本地存储
-                    localStorage.setItem('philosophyArticles', JSON.stringify(articles));
+                    updateArticlesUI();
+                    updateManageArticlesUI();
                     
                     // 如果是新分类，添加到分类列表
                     if (!categories.includes(category)) {
                         categories.push(category);
-                        localStorage.setItem('philosophyCategories', JSON.stringify(categories));
                         updateCategoriesUI();
                     }
                     
                     // 上传到GitHub仓库
-                    uploadArticleToGitHub(newArticle);
-                    
-                    // 更新UI
-                    updateArticlesUI();
-                    updateManageArticlesUI();
-                    
-                    // 重置表单
-                    document.getElementById('publish-form').reset();
-                    document.getElementById('preview-container').classList.add('hidden');
-                    
-                    alert('文章发布成功！');
+                    uploadArticleToGitHub(newArticle)
+                        .then(() => {
+                            // 上传成功，保存到本地存储
+                            localStorage.setItem('philosophyArticles', JSON.stringify(articles));
+                            if (!categories.includes(category)) {
+                                localStorage.setItem('philosophyCategories', JSON.stringify(categories));
+                            }
+                            
+                            // 重置表单
+                            document.getElementById('publish-form').reset();
+                            document.getElementById('preview-container').classList.add('hidden');
+                            
+                            alert('文章发布成功！所有访客都能看到这篇文章。');
+                        })
+                        .catch(error => {
+                            console.error('发布文章失败:', error);
+                            // 从本地列表中移除
+                            articles.shift();
+                            updateArticlesUI();
+                            updateManageArticlesUI();
+                            
+                            alert('文章发布失败: ' + error.message);
+                        });
                 }
             });
             
@@ -1228,26 +1710,33 @@
                 const bio = document.getElementById('profile-bio').value;
                 
                 if (name) {
-                    // 保存到本地存储
-                    localStorage.setItem('philosophyProfile', JSON.stringify({ name, bio }));
+                    // 更新本地个人资料
+                    const updatedProfile = { ...profile, name, bio };
                     
-                    // 更新UI
-                    document.querySelector('#avatar-container + h3').textContent = name;
-                    document.querySelector('#avatar-container + h3 + p').textContent = bio;
+                    // 先更新UI
+                    profile = updatedProfile;
+                    updateProfileUI();
                     
-                    alert('个人资料保存成功！');
+                    // 上传到GitHub
+                    uploadProfileToGitHub(updatedProfile)
+                        .then(() => {
+                            // 上传成功，保存到本地存储
+                            localStorage.setItem('philosophyProfile', JSON.stringify(profile));
+                            alert('个人资料保存成功！所有访客都能看到更新。');
+                        })
+                        .catch(error => {
+                            console.error('保存个人资料失败:', error);
+                            alert('保存个人资料失败: ' + error.message);
+                        });
                 }
             });
             
-            // 检查是否有保存的个人资料
-            const savedProfile = localStorage.getItem('philosophyProfile');
-            if (savedProfile) {
-                const profile = JSON.parse(savedProfile);
-                document.getElementById('profile-name').value = profile.name;
-                document.getElementById('profile-bio').value = profile.bio;
-                document.querySelector('#avatar-container + h3').textContent = profile.name;
-                document.querySelector('#avatar-container + h3 + p').textContent = profile.bio;
-            }
+            // 重试加载文章
+            document.getElementById('retry-loading').addEventListener('click', () => {
+                document.getElementById('articles-error').classList.add('hidden');
+                document.getElementById('articles-loading').classList.remove('hidden');
+                loadArticlesFromGitHub();
+            });
         }
         
         // 自动检测GitHub仓库
@@ -1326,7 +1815,13 @@
         function bindArticleEditEvents() {
             // 关闭文章详情模态框
             document.getElementById('close-modal').addEventListener('click', () => {
-                document.getElementById('article-modal').classList.add('hidden');
+                const modalContent = document.getElementById('modal-content-wrapper');
+                modalContent.classList.remove('scale-100', 'opacity-100');
+                modalContent.classList.add('scale-95', 'opacity-0');
+                
+                setTimeout(() => {
+                    document.getElementById('article-modal').classList.add('hidden');
+                }, 300);
             });
             
             // 从详情模态框打开编辑
@@ -1335,19 +1830,25 @@
                 const article = articles.find(a => a.id === articleId);
                 
                 if (article) {
-                    document.getElementById('article-modal').classList.add('hidden');
-                    openEditArticleModal(article);
+                    const modalContent = document.getElementById('modal-content-wrapper');
+                    modalContent.classList.remove('scale-100', 'opacity-100');
+                    modalContent.classList.add('scale-95', 'opacity-0');
+                    
+                    setTimeout(() => {
+                        document.getElementById('article-modal').classList.add('hidden');
+                        openEditArticleModal(article);
+                    }, 300);
                 }
             });
             
             // 关闭编辑模态框
             document.getElementById('close-edit-modal').addEventListener('click', () => {
-                document.getElementById('edit-article-modal').classList.add('hidden');
+                closeEditModal();
             });
             
             // 取消编辑
             document.getElementById('cancel-edit').addEventListener('click', () => {
-                document.getElementById('edit-article-modal').classList.add('hidden');
+                closeEditModal();
             });
             
             // 保存编辑
@@ -1360,45 +1861,65 @@
                 if (articleId && title && category && content) {
                     const articleIndex = articles.findIndex(a => a.id === articleId);
                     if (articleIndex !== -1) {
-                        // 检查分类是否有变化
-                        const oldCategory = articles[articleIndex].category;
+                        // 保存旧的分类和文章信息
+                        const oldArticle = articles[articleIndex];
+                        const oldCategory = oldArticle.category;
                         const isCategoryChanged = oldCategory !== category;
                         
-                        // 更新文章
-                        articles[articleIndex] = {
-                            ...articles[articleIndex],
+                        // 创建更新后的文章对象
+                        const updatedArticle = {
+                            ...oldArticle,
                             title,
                             category,
                             content,
                             preview: content.substring(0, 150).replace(/\n/g, ' ') + (content.length > 150 ? '...' : '')
                         };
                         
-                        // 保存到本地存储
-                        localStorage.setItem('philosophyArticles', JSON.stringify(articles));
+                        // 先更新本地UI
+                        articles[articleIndex] = updatedArticle;
                         
-                        // 如果是新分类，添加到分类列表
+                        // 检查分类是否有变化
                         if (!categories.includes(category)) {
                             categories.push(category);
-                            localStorage.setItem('philosophyCategories', JSON.stringify(categories));
-                        } 
-                        // 如果旧分类不再有文章，从分类列表移除
-                        else if (isCategoryChanged && !articles.some(a => a.category === oldCategory)) {
+                        } else if (isCategoryChanged && !articles.some(a => a.category === oldCategory)) {
                             categories = categories.filter(c => c !== oldCategory);
-                            localStorage.setItem('philosophyCategories', JSON.stringify(categories));
                         }
-                        
-                        // 更新GitHub仓库中的文章
-                        updateArticleOnGitHub(articles[articleIndex]);
                         
                         // 更新UI
                         updateCategoriesUI();
                         updateArticlesUI();
                         updateManageArticlesUI();
                         
-                        // 关闭模态框
-                        document.getElementById('edit-article-modal').classList.add('hidden');
-                        
-                        alert('文章更新成功！');
+                        // 上传到GitHub
+                        updateArticleOnGitHub(updatedArticle)
+                            .then(() => {
+                                // 上传成功，保存到本地存储
+                                localStorage.setItem('philosophyArticles', JSON.stringify(articles));
+                                localStorage.setItem('philosophyCategories', JSON.stringify(categories));
+                                
+                                // 关闭模态框
+                                closeEditModal();
+                                
+                                alert('文章更新成功！所有访客都能看到更新。');
+                            })
+                            .catch(error => {
+                                console.error('更新文章失败:', error);
+                                // 恢复旧文章
+                                articles[articleIndex] = oldArticle;
+                                if (isCategoryChanged) {
+                                    // 恢复分类
+                                    if (!categories.includes(oldCategory)) {
+                                        categories.push(oldCategory);
+                                    }
+                                    categories = categories.filter(c => c !== category);
+                                    updateCategoriesUI();
+                                }
+                                
+                                updateArticlesUI();
+                                updateManageArticlesUI();
+                                
+                                alert('更新文章失败: ' + error.message);
+                            });
                     }
                 }
             });
@@ -1407,37 +1928,66 @@
             document.getElementById('delete-article-btn').addEventListener('click', () => {
                 const articleId = document.getElementById('edit-article-id').value;
                 
-                if (articleId && confirm('确定要删除这篇文章吗？此操作不可撤销。')) {
+                if (articleId && confirm('确定要删除这篇文章吗？此操作不可撤销。所有访客都将无法再看到这篇文章。')) {
                     const articleIndex = articles.findIndex(a => a.id === articleId);
                     if (articleIndex !== -1) {
                         const article = articles[articleIndex];
                         const articleCategory = article.category;
                         
-                        // 从文章列表移除
+                        // 先从本地移除
                         articles.splice(articleIndex, 1);
                         
-                        // 保存到本地存储
-                        localStorage.setItem('philosophyArticles', JSON.stringify(articles));
-                        
-                        // 如果该分类不再有文章，从分类列表移除
-                        if (!articles.some(a => a.category === articleCategory)) {
+                        // 检查分类是否需要移除
+                        const categoryStillUsed = articles.some(a => a.category === articleCategory);
+                        if (!categoryStillUsed) {
                             categories = categories.filter(c => c !== articleCategory);
-                            localStorage.setItem('philosophyCategories', JSON.stringify(categories));
                             updateCategoriesUI();
                         }
-                        
-                        // 从GitHub仓库删除文章
-                        deleteArticleFromGitHub(articleId);
                         
                         // 更新UI
                         updateArticlesUI();
                         updateManageArticlesUI();
                         
-                        // 关闭模态框
-                        document.getElementById('edit-article-modal').classList.add('hidden');
+                        // 从GitHub删除
+                        deleteArticleFromGitHub(articleId)
+                            .then(() => {
+                                // 删除成功，更新本地存储
+                                localStorage.setItem('philosophyArticles', JSON.stringify(articles));
+                                localStorage.setItem('philosophyCategories', JSON.stringify(categories));
+                                
+                                // 关闭模态框
+                                closeEditModal();
+                                
+                                alert('文章已成功删除！');
+                            })
+                            .catch(error => {
+                                console.error('删除文章失败:', error);
+                                // 恢复文章
+                                articles.splice(articleIndex, 0, article);
+                                if (!categoryStillUsed) {
+                                    categories.push(articleCategory);
+                                    updateCategoriesUI();
+                                }
+                                
+                                updateArticlesUI();
+                                updateManageArticlesUI();
+                                
+                                alert('删除文章失败: ' + error.message);
+                            });
                     }
                 }
             });
+        }
+        
+        // 关闭编辑模态框
+        function closeEditModal() {
+            const editContent = document.getElementById('edit-modal-content-wrapper');
+            editContent.classList.remove('scale-100', 'opacity-100');
+            editContent.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                document.getElementById('edit-article-modal').classList.add('hidden');
+            }, 300);
         }
         
         // 绑定分类相关事件
@@ -1446,27 +1996,36 @@
             document.getElementById('add-category-btn').addEventListener('click', () => {
                 document.getElementById('new-category-modal').classList.remove('hidden');
                 document.getElementById('category-name').value = '';
+                document.getElementById('category-name').focus();
             });
             
             // 编辑文章中的添加分类按钮
             document.getElementById('add-category-edit-btn').addEventListener('click', () => {
                 document.getElementById('new-category-modal').classList.remove('hidden');
                 document.getElementById('category-name').value = '';
+                document.getElementById('category-name').focus();
             });
             
             // 取消添加分类
             document.getElementById('cancel-category').addEventListener('click', () => {
-                document.getElementById('new-category-modal').classList.add('hidden');
+                const categoryContent = document.getElementById('category-modal-content');
+                categoryContent.classList.remove('scale-100', 'opacity-100');
+                categoryContent.classList.add('scale-95', 'opacity-0');
+                
+                setTimeout(() => {
+                    document.getElementById('new-category-modal').classList.add('hidden');
+                }, 300);
             });
             
             // 确认添加分类
             document.getElementById('confirm-category').addEventListener('click', () => {
-                const categoryName = document.getElementById('category-name').value.trim();
-                if (categoryName && !categories.includes(categoryName)) {
-                    categories.push(categoryName);
-                    localStorage.setItem('philosophyCategories', JSON.stringify(categories));
-                    updateCategoriesUI();
-                    document.getElementById('new-category-modal').classList.add('hidden');
+                addNewCategory();
+            });
+            
+            // 按Enter键添加分类
+            document.getElementById('category-name').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    addNewCategory();
                 }
             });
             
@@ -1520,6 +2079,40 @@
             });
         }
         
+        // 添加新分类
+        function addNewCategory() {
+            const categoryName = document.getElementById('category-name').value.trim();
+            if (categoryName && !categories.includes(categoryName)) {
+                // 先更新本地UI
+                categories.push(categoryName);
+                updateCategoriesUI();
+                
+                // 上传到GitHub
+                updateCategoriesFileOnGitHub()
+                    .then(() => {
+                        // 上传成功，保存到本地存储
+                        localStorage.setItem('philosophyCategories', JSON.stringify(categories));
+                        
+                        // 关闭模态框
+                        const categoryContent = document.getElementById('category-modal-content');
+                        categoryContent.classList.remove('scale-100', 'opacity-100');
+                        categoryContent.classList.add('scale-95', 'opacity-0');
+                        
+                        setTimeout(() => {
+                            document.getElementById('new-category-modal').classList.add('hidden');
+                        }, 300);
+                    })
+                    .catch(error => {
+                        console.error('添加分类失败:', error);
+                        // 恢复分类列表
+                        categories = categories.filter(c => c !== categoryName);
+                        updateCategoriesUI();
+                        
+                        alert('添加分类失败: ' + error.message);
+                    });
+            }
+        }
+        
         // 删除文章
         function deleteArticle(articleId) {
             const articleIndex = articles.findIndex(a => a.id === articleId);
@@ -1527,37 +2120,52 @@
                 const article = articles[articleIndex];
                 const articleCategory = article.category;
                 
-                // 从文章列表移除
+                // 先从本地移除
                 articles.splice(articleIndex, 1);
                 
-                // 保存到本地存储
-                localStorage.setItem('philosophyArticles', JSON.stringify(articles));
-                
-                // 如果该分类不再有文章，从分类列表移除
-                if (!articles.some(a => a.category === articleCategory)) {
+                // 检查分类是否需要移除
+                const categoryStillUsed = articles.some(a => a.category === articleCategory);
+                if (!categoryStillUsed) {
                     categories = categories.filter(c => c !== articleCategory);
-                    localStorage.setItem('philosophyCategories', JSON.stringify(categories));
                     updateCategoriesUI();
                 }
-                
-                // 从GitHub仓库删除文章
-                deleteArticleFromGitHub(articleId);
                 
                 // 更新UI
                 updateArticlesUI();
                 updateManageArticlesUI();
+                
+                // 从GitHub删除
+                deleteArticleFromGitHub(articleId)
+                    .then(() => {
+                        // 删除成功，更新本地存储
+                        localStorage.setItem('philosophyArticles', JSON.stringify(articles));
+                        localStorage.setItem('philosophyCategories', JSON.stringify(categories));
+                    })
+                    .catch(error => {
+                        console.error('删除文章失败:', error);
+                        // 恢复文章
+                        articles.splice(articleIndex, 0, article);
+                        if (!categoryStillUsed) {
+                            categories.push(articleCategory);
+                            updateCategoriesUI();
+                        }
+                        
+                        updateArticlesUI();
+                        updateManageArticlesUI();
+                        
+                        alert('删除文章失败: ' + error.message);
+                    });
             }
         }
         
         // 上传文章到GitHub
         function uploadArticleToGitHub(article) {
-            const token = localStorage.getItem('githubToken');
-            const repo = localStorage.getItem('repoInfo');
-            
-            if (!token || !repo) return;
+            if (!githubToken || !repoInfo) {
+                return Promise.reject(new Error('未进行GitHub认证'));
+            }
             
             // 构建GitHub API URL
-            const [owner, repoName] = repo.split('/');
+            const [owner, repoName] = repoInfo.split('/');
             const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/articles/${article.id}.md`;
             
             // 准备文章内容
@@ -1573,10 +2181,10 @@ ${article.content}`;
             const base64Content = btoa(unescape(encodeURIComponent(content)));
             
             // 发送请求
-            fetch(apiUrl, {
+            return fetch(apiUrl, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `token ${githubToken}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/vnd.github.v3+json'
                 },
@@ -1586,38 +2194,41 @@ ${article.content}`;
                 })
             })
             .then(response => {
-                if (!response.ok) throw new Error('上传失败');
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '上传文章失败');
+                    });
+                }
                 console.log('文章已成功上传到GitHub');
                 
                 // 更新分类文件
-                updateCategoriesFileOnGitHub();
-            })
-            .catch(error => {
-                console.error('GitHub上传失败:', error);
-                alert('文章已保存到本地，但上传到GitHub失败。请检查您的令牌权限和仓库信息。');
+                return updateCategoriesFileOnGitHub();
             });
         }
         
         // 更新GitHub上的文章
         function updateArticleOnGitHub(article) {
-            const token = localStorage.getItem('githubToken');
-            const repo = localStorage.getItem('repoInfo');
-            
-            if (!token || !repo) return;
+            if (!githubToken || !repoInfo) {
+                return Promise.reject(new Error('未进行GitHub认证'));
+            }
             
             // 构建GitHub API URL
-            const [owner, repoName] = repo.split('/');
+            const [owner, repoName] = repoInfo.split('/');
             const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/articles/${article.id}.md`;
             
             // 先获取现有文件的SHA
-            fetch(apiUrl, {
+            return fetch(apiUrl, {
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `token ${githubToken}`,
                     'Accept': 'application/vnd.github.v3+json'
                 }
             })
             .then(response => {
-                if (!response.ok) throw new Error('获取文件信息失败');
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '获取文章信息失败');
+                    });
+                }
                 return response.json();
             })
             .then(data => {
@@ -1637,7 +2248,7 @@ ${article.content}`;
                 return fetch(apiUrl, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `token ${token}`,
+                        'Authorization': `token ${githubToken}`,
                         'Content-Type': 'application/json',
                         'Accept': 'application/vnd.github.v3+json'
                     },
@@ -1649,33 +2260,32 @@ ${article.content}`;
                 });
             })
             .then(response => {
-                if (!response.ok) throw new Error('更新失败');
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '更新文章失败');
+                    });
+                }
                 console.log('文章已成功更新到GitHub');
                 
                 // 更新分类文件
-                updateCategoriesFileOnGitHub();
-            })
-            .catch(error => {
-                console.error('GitHub更新失败:', error);
-                alert('文章已保存到本地，但更新到GitHub失败。请检查您的令牌权限和仓库信息。');
+                return updateCategoriesFileOnGitHub();
             });
         }
         
         // 从GitHub删除文章
         function deleteArticleFromGitHub(articleId) {
-            const token = localStorage.getItem('githubToken');
-            const repo = localStorage.getItem('repoInfo');
-            
-            if (!token || !repo) return;
+            if (!githubToken || !repoInfo) {
+                return Promise.reject(new Error('未进行GitHub认证'));
+            }
             
             // 构建GitHub API URL
-            const [owner, repoName] = repo.split('/');
+            const [owner, repoName] = repoInfo.split('/');
             const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/articles/${articleId}.md`;
             
             // 先获取现有文件的SHA
-            fetch(apiUrl, {
+            return fetch(apiUrl, {
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `token ${githubToken}`,
                     'Accept': 'application/vnd.github.v3+json'
                 }
             })
@@ -1683,7 +2293,9 @@ ${article.content}`;
                 if (!response.ok) {
                     // 如果文件不存在，也视为删除成功
                     if (response.status === 404) return null;
-                    throw new Error('获取文件信息失败');
+                    return response.json().then(data => {
+                        throw new Error(data.message || '获取文章信息失败');
+                    });
                 }
                 return response.json();
             })
@@ -1694,7 +2306,7 @@ ${article.content}`;
                 return fetch(apiUrl, {
                     method: 'DELETE',
                     headers: {
-                        'Authorization': `token ${token}`,
+                        'Authorization': `token ${githubToken}`,
                         'Content-Type': 'application/json',
                         'Accept': 'application/vnd.github.v3+json'
                     },
@@ -1705,27 +2317,26 @@ ${article.content}`;
                 });
             })
             .then(response => {
-                if (response && !response.ok) throw new Error('删除失败');
+                if (response && !response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '删除文章失败');
+                    });
+                }
                 console.log('文章已从GitHub成功删除');
                 
                 // 更新分类文件
-                updateCategoriesFileOnGitHub();
-            })
-            .catch(error => {
-                console.error('GitHub删除失败:', error);
-                alert('文章已从本地删除，但从GitHub删除失败。请检查您的令牌权限和仓库信息。');
+                return updateCategoriesFileOnGitHub();
             });
         }
         
         // 更新GitHub上的分类文件
         function updateCategoriesFileOnGitHub() {
-            const token = localStorage.getItem('githubToken');
-            const repo = localStorage.getItem('repoInfo');
-            
-            if (!token || !repo) return;
+            if (!githubToken || !repoInfo) {
+                return Promise.reject(new Error('未进行GitHub认证'));
+            }
             
             // 构建GitHub API URL
-            const [owner, repoName] = repo.split('/');
+            const [owner, repoName] = repoInfo.split('/');
             const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/categories.json`;
             
             // 准备分类内容
@@ -1738,9 +2349,9 @@ ${article.content}`;
             const base64Content = btoa(unescape(encodeURIComponent(content)));
             
             // 先检查文件是否存在
-            fetch(apiUrl, {
+            return fetch(apiUrl, {
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `token ${githubToken}`,
                     'Accept': 'application/vnd.github.v3+json'
                 }
             })
@@ -1750,14 +2361,16 @@ ${article.content}`;
                 } else if (response.status === 404) {
                     return { exists: false };
                 }
-                throw new Error('检查分类文件失败');
+                return response.json().then(data => {
+                    throw new Error(data.message || '检查分类文件失败');
+                });
             })
             .then(result => {
                 // 发送创建或更新请求
                 return fetch(apiUrl, {
-                    method: result.exists ? 'PUT' : 'PUT',
+                    method: 'PUT',
                     headers: {
-                        'Authorization': `token ${token}`,
+                        'Authorization': `token ${githubToken}`,
                         'Content-Type': 'application/json',
                         'Accept': 'application/vnd.github.v3+json'
                     },
@@ -1769,11 +2382,119 @@ ${article.content}`;
                 });
             })
             .then(response => {
-                if (!response.ok) throw new Error('更新分类文件失败');
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '更新分类文件失败');
+                    });
+                }
                 console.log('分类文件已成功更新到GitHub');
+                return true;
+            });
+        }
+        
+        // 上传头像到GitHub
+        function uploadAvatarToGitHub(imageDataUrl) {
+            if (!githubToken || !repoInfo) {
+                return Promise.reject(new Error('未进行GitHub认证'));
+            }
+            
+            // 构建GitHub API URL
+            const [owner, repoName] = repoInfo.split('/');
+            const fileName = `avatar-${Date.now()}.png`;
+            const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/images/${fileName}`;
+            
+            // 提取Base64数据（去除前缀）
+            const base64Content = imageDataUrl.split(',')[1];
+            
+            // 发送请求
+            return fetch(apiUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${githubToken}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
+                },
+                body: JSON.stringify({
+                    message: 'Update avatar',
+                    content: base64Content
+                })
             })
-            .catch(error => {
-                console.error('GitHub分类文件更新失败:', error);
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '上传头像失败');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('头像已成功上传到GitHub');
+                
+                // 更新个人资料中的头像URL
+                const avatarUrl = data.content.download_url;
+                profile.avatar = avatarUrl;
+                
+                // 同时更新profile.json
+                return uploadProfileToGitHub(profile);
+            });
+        }
+        
+        // 上传个人资料到GitHub
+        function uploadProfileToGitHub(profileData) {
+            if (!githubToken || !repoInfo) {
+                return Promise.reject(new Error('未进行GitHub认证'));
+            }
+            
+            // 构建GitHub API URL
+            const [owner, repoName] = repoInfo.split('/');
+            const apiUrl = `https://api.github.com/repos/${owner}/${repoName}/contents/profile.json`;
+            
+            // 准备内容（不包含临时的avatarUrl）
+            const { avatarUrl, ...profileToSave } = profileData;
+            const content = JSON.stringify(profileToSave, null, 2);
+            const base64Content = btoa(unescape(encodeURIComponent(content)));
+            
+            // 先检查文件是否存在
+            return fetch(apiUrl, {
+                headers: {
+                    'Authorization': `token ${githubToken}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            })
+            .then(response => {
+                if   如果 (response.ok) {
+                    return response.json().then(data   数据 => ({ exists: true   真正的, sha: data   数据.sha }));
+                } else if   如果 (response.status === 404) {
+                    return { exists: false   假 };
+                }
+                return response.json().then(data   数据 => {
+                    throw new   新    错误Error(data   数据.message || '检查个人资料文件失败');
+                });
+            })
+            .then(result => {
+                // 发送创建或更新请求
+                return fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${githubToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        message: 'Update profile',
+                        content: base64Content,
+                        ...(result.exists && { sha: result.sha })
+                    })
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || '更新个人资料失败');
+                    });
+                }
+                console.log('个人资料已成功更新到GitHub');
+                return true;
             });
         }
         
@@ -1782,6 +2503,6 @@ ${article.content}`;
             const date = new Date(dateString);
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         }
-    </script>
+       > < /脚本</script   脚本>
 </body>
 </html>
