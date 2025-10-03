@@ -1,2 +1,2 @@
-# 7534tafuya1314.github.io
+# blog.crocean.dpdns.org
 A personal thinking platform for natural science.
