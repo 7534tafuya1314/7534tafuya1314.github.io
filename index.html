@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <!-- 头部内容保持不变 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>哲理论-探索思维的点滴</title>
@@ -27,7 +26,6 @@
     </script>
     
     <style type="text/tailwindcss">
-        <!-- 样式内容保持不变 -->
         @layer utilities {
             .text-shadow {
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
@@ -242,32 +240,6 @@
             background-color: #f9f9f9;
         }
         
-        .status-message {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 4px;
-            color: white;
-            z-index: 1001;
-            transform: translateY(100px);
-            opacity: 0;
-            transition: all 0.3s ease;
-        }
-        
-        .status-message.show {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        
-        .status-success {
-            background-color: #4CAF50;
-        }
-        
-        .status-error {
-            background-color: #f44336;
-        }
-        
         .error-log {
             margin-top: 10px;
             padding: 10px;
@@ -298,7 +270,6 @@
     </style>
 </head>
 <body>
-    <!-- 页面结构保持不变 -->
     <!-- 导航栏 -->
     <nav class="bg-dark text-white p-4 sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
@@ -575,9 +546,6 @@
         </div>
     </div>
 
-    <!-- 状态消息提示 -->
-    <div id="status-message" class="status-message"></div>
-
     <script>
         // 配置模块 - 已设置为指定仓库
         const Config = {
@@ -673,7 +641,6 @@
                 currentRepoInfo: get('current-repo-info'),
                 
                 // 通用
-                statusMessage: get('status-message'),
                 closeButtons: document.querySelectorAll('.close-btn'),
                 modals: document.querySelectorAll('.modal'),
                 editorButtons: document.querySelectorAll('.editor-button')
@@ -712,18 +679,6 @@
             
             createFragment() {
                 return document.createDocumentFragment();
-            },
-            
-            showStatusMessage(message, isError = false) {
-                const statusEl = Elements.statusMessage;
-                statusEl.textContent = message;
-                statusEl.className = 'status-message';
-                statusEl.classList.add(isError ? 'status-error' : 'status-success');
-                statusEl.classList.add('show');
-                
-                setTimeout(() => {
-                    statusEl.classList.remove('show');
-                }, 3000);
             },
             
             encodeBase64(str) {
@@ -1015,17 +970,15 @@
                     );
                     
                     if (result.success) {
-                        Utils.showStatusMessage('分类保存成功');
                         this.renderCategories();
                         this.renderCategorySelector();
                         return true;
                     } else {
-                        Utils.showStatusMessage('分类保存失败: ' + result.error, true);
+                        console.error('分类保存失败:', result.error);
                         return false;
                     }
                 } catch (error) {
                     console.error('保存分类时发生错误:', error);
-                    Utils.showStatusMessage('保存分类时发生错误: ' + error.message, true);
                     return false;
                 }
             },
@@ -1033,14 +986,14 @@
             // 添加新分类
             async addCategory(name) {
                 if (!name || name.trim() === '') {
-                    Utils.showStatusMessage('分类名称不能为空', true);
+                    console.error('分类名称不能为空');
                     return false;
                 }
                 
                 // 检查分类是否已存在
                 const exists = State.categories.some(cat => cat.name.trim().toLowerCase() === name.trim().toLowerCase());
                 if (exists) {
-                    Utils.showStatusMessage('该分类已存在', true);
+                    console.error('该分类已存在');
                     return false;
                 }
                 
@@ -1061,13 +1014,13 @@
             // 更新分类
             async updateCategory(id, newName) {
                 if (!newName || newName.trim() === '') {
-                    Utils.showStatusMessage('分类名称不能为空', true);
+                    console.error('分类名称不能为空');
                     return false;
                 }
                 
                 const categoryIndex = State.categories.findIndex(cat => cat.id === id);
                 if (categoryIndex === -1) {
-                    Utils.showStatusMessage('分类不存在', true);
+                    console.error('分类不存在');
                     return false;
                 }
                 
@@ -1078,7 +1031,7 @@
                 );
                 
                 if (nameExists) {
-                    Utils.showStatusMessage('该分类名称已存在', true);
+                    console.error('该分类名称已存在');
                     return false;
                 }
                 
@@ -1247,7 +1200,6 @@
                     
                     if (!result.success) {
                         console.error('获取文章列表失败:', result.error);
-                        Utils.showStatusMessage('加载文章失败: ' + result.error, true);
                         Elements.文章加载指示器.classList.add('hidden');
                         return false;
                     }
@@ -1282,7 +1234,6 @@
                     return true;
                 } catch (error) {
                     console.error('加载文章时发生错误:', error);
-                    Utils.showStatusMessage('加载文章时发生错误: ' + error.message, true);
                     Elements.文章加载指示器.classList.add('hidden');
                     return false;
                 }
@@ -1424,12 +1375,12 @@
             // 发布新文章
             async publishArticle(title, content, categories) {
                 if (!title || title.trim() === '') {
-                    Utils.showStatusMessage('文章标题不能为空', true);
+                    console.error('文章标题不能为空');
                     return false;
                 }
                 
                 if (!content || content.trim() === '') {
-                    Utils.showStatusMessage('文章内容不能为空', true);
+                    console.error('文章内容不能为空');
                     return false;
                 }
                 
@@ -1450,8 +1401,6 @@
                     );
                     
                     if (result.success) {
-                        Utils.showStatusMessage('文章发布成功');
-                        
                         // 重新加载文章列表
                         await this.loadArticles();
                         
@@ -1466,12 +1415,11 @@
                         
                         return true;
                     } else {
-                        Utils.showStatusMessage('文章发布失败: ' + result.error, true);
+                        console.error('文章发布失败:', result.error);
                         return false;
                     }
                 } catch (error) {
                     console.error('发布文章时发生错误:', error);
-                    Utils.showStatusMessage('发布文章时发生错误: ' + error.message, true);
                     return false;
                 }
             },
@@ -1519,18 +1467,16 @@
                     );
                     
                     if (result.success) {
-                        Utils.showStatusMessage('文章删除成功');
                         // 重新加载文章列表
                         await this.loadArticles();
                         this.renderArticleManagementTable();
                         return true;
                     } else {
-                        Utils.showStatusMessage('文章删除失败: ' + result.error, true);
+                        console.error('文章删除失败:', result.error);
                         return false;
                     }
                 } catch (error) {
                     console.error('删除文章时发生错误:', error);
-                    Utils.showStatusMessage('删除文章时发生错误: ' + error.message, true);
                     return false;
                 }
             },
@@ -1718,7 +1664,7 @@
                 const articlesOnDate = State.articles.filter(article => article.publishedAt === dateStr);
                 
                 if (articlesOnDate.length === 0) {
-                    Utils.showStatusMessage(`该日期(${dateStr})没有文章`, true);
+                    console.error(`该日期(${dateStr})没有文章`);
                     return;
                 }
                 
@@ -1783,7 +1729,6 @@
                     return true;
                 } catch (error) {
                     console.error('初始化管理后台失败:', error);
-                    Utils.showStatusMessage('加载管理界面失败: ' + error.message, true);
                     return false;
                 }
             },
@@ -1810,8 +1755,6 @@
                     
                     // 关闭管理模态框
                     Elements.后台管理模态框.style.display = 'none';
-                    
-                    Utils.showStatusMessage('已退出登录');
                 }
             }
         };
@@ -2078,8 +2021,6 @@
                     // 重新加载管理界面
                     Elements.后台管理模态框.style.display = 'block';
                     AdminPanel.init();
-                    
-                    Utils.showStatusMessage(`已切换到仓库: ${State.githubOwner}/${State.githubRepo}`);
                 }
             });
         }
