@@ -140,14 +140,20 @@
             color: #8B5A2B;
         }
         
-        .loader {
-            border: 4px solid rgba(255, 255, 255, 0.3);
+        /* 小巧的加载指示器样式 */
+        .small-loader {
+            border: 3px solid rgba(139, 90, 43, 0.2);
             border-radius: 50%;
-            border-top: 4px solid #8B5A2B;
-            width: 30px;
-            height: 30px;
+            border-top: 3px solid #8B5A2B;
+            width: 24px;
+            height: 24px;
             animation: spin 1s linear infinite;
-            margin: 20px auto;
+            margin: 10px auto;
+        }
+        
+        .loader-container {
+            text-align: center;
+            padding: 20px 0;
         }
         
         @keyframes spin {
@@ -327,7 +333,13 @@
     <!-- 文章列表区域 -->
     <section class="py-8">
         <div class="container mx-auto px-4">
-            <div id="文章列表" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- 加载指示器容器 -->
+            <div id="文章加载指示器" class="loader-container">
+                <div class="small-loader"></div>
+                <p class="text-gray-500 text-sm mt-2">加载文章中...</p>
+            </div>
+            
+            <div id="文章列表" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 hidden">
                 <!-- 文章卡片通过JS动态生成 -->
             </div>
         </div>
@@ -397,7 +409,7 @@
                 <p class="mb-4 text-gray-600">请选择用于存储博客文章的仓库（推荐使用名称包含"philosophy"或"blog"的仓库）</p>
                 
                 <div id="repo-loading" class="text-center py-8">
-                    <div class="loader"></div>
+                    <div class="small-loader"></div>
                     <p class="text-gray-500 mt-4">加载您的仓库列表中...</p>
                 </div>
                 
@@ -438,14 +450,14 @@
             </div>
         </div>
     </div>
-    <!-- 后台管理模态框 -->
+        <!-- 后台管理模态框 -->
     <div id="后台管理模态框" class="modal">
         <div class="modal-content max-w-5xl">
             <span class="close-btn">&times;</span>
             <div class="p-6">
                 <h2 class="text-2xl font-bold mb-6">后台管理</h2>
                 <div id="admin-loading" class="text-center py-8">
-                    <div class="loader"></div>
+                    <div class="small-loader"></div>
                     <p class="text-gray-500 mt-4">加载管理界面中...</p>
                 </div>
                 <div class="admin-container hidden" id="admin-content-container">
@@ -564,10 +576,10 @@
     <div id="status-message" class="status-message"></div>
 
     <script>
-        // 配置模块
+        // 配置模块 - 已设置为指定仓库
         const Config = {
             githubAPI: 'https://api.github.com',
-            defaultRepoName: 'philosophy-blog', // 默认仓库名
+            defaultRepoName: '7534tafuya1314.github.io', // 指定仓库名
             articlesDir: 'articles',
             categoriesFile: 'categories.json',
             syncInterval: 30000 // 自动同步间隔30秒
@@ -580,8 +592,8 @@
             currentDate: new Date(),
             selectedCategory: 'all',
             githubToken: localStorage.getItem('githubToken') || null,
-            githubOwner: localStorage.getItem('githubOwner') || '', // 从本地存储获取
-            githubRepo: localStorage.getItem('githubRepo') || '', // 从本地存储获取
+            githubOwner: '7534tafuya1314', // 固定仓库所有者
+            githubRepo: '7534tafuya1314.github.io', // 固定仓库名
             isAuthenticated: !!localStorage.getItem('githubToken'),
             lastSyncTime: null,
             philosophicalQuotes: [
@@ -610,6 +622,7 @@
                 文章详情模态框: get('文章详情模态框'),
                 分类容器: get('分类容器'),
                 文章列表: get('文章列表'),
+                文章加载指示器: get('文章加载指示器'),
                 上一月按钮: get('上一月'),
                 下一月按钮: get('下一月'),
                 当前年月显示: get('当前年月'),
@@ -736,31 +749,6 @@
                 element.style.display = 'none';
             },
             
-            // 从URL中提取GitHub Pages的仓库信息
-            extractRepoInfoFromUrl() {
-                try {
-                    const url = new URL(window.location.href);
-                    const hostname = url.hostname;
-                    const pathSegments = url.pathname.split('/').filter(segment => segment.trim() !== '');
-                    
-                    // 模式1: username.github.io/repoName/
-                    if (hostname.endsWith('.github.io')) {
-                        const parts = hostname.split('.');
-                        if (parts.length >= 2) {
-                            const owner = parts[0];
-                            // 路径中的第一个段作为仓库名，如果没有则使用默认
-                            const repo = pathSegments.length > 0 ? pathSegments[0] : Config.defaultRepoName;
-                            return { owner, repo };
-                        }
-                    }
-                    
-                    return null;
-                } catch (error) {
-                    console.error('URL解析错误:', error);
-                    return null;
-                }
-            },
-            
             // 添加时间戳参数防止缓存
             addCacheBuster(url) {
                 const separator = url.includes('?') ? '&' : '?';
@@ -776,21 +764,27 @@
             }
         };
 
-        // GitHub API模块
+        // GitHub API模块 - 修改为支持匿名访问公开仓库
         const GitHubAPI = {
-            getHeaders() {
-                return {
-                    'Authorization': State.githubToken ? `token ${State.githubToken}` : '',
+            getHeaders(needAuth = false) {
+                const headers = {
                     'Accept': 'application/vnd.github.v3+json',
                     'Content-Type': 'application/json'
                 };
+                
+                // 只有需要认证的操作才添加令牌
+                if (needAuth && State.githubToken) {
+                    headers['Authorization'] = `token ${State.githubToken}`;
+                }
+                
+                return headers;
             },
             
             // 获取用户信息（用于验证令牌）
             async getUserInfo() {
                 try {
                     const response = await fetch(`${Config.githubAPI}/user`, {
-                        headers: this.getHeaders()
+                        headers: this.getHeaders(true)
                     });
                     
                     if (!response.ok) {
@@ -810,7 +804,7 @@
             async getUserRepos() {
                 try {
                     const response = await fetch(`${Config.githubAPI}/user/repos?per_page=100`, {
-                        headers: this.getHeaders()
+                        headers: this.getHeaders(true)
                     });
                     
                     if (!response.ok) {
@@ -832,12 +826,12 @@
                 return !!userInfo;
             },
             
-            // 获取指定路径下的文件列表
-            async getFilesList(path) {
+            // 获取指定路径下的文件列表 - 公开仓库不需要认证
+            async getFilesList(path, needAuth = false) {
                 try {
                     const response = await fetch(
                         `${Config.githubAPI}/repos/${State.githubOwner}/${State.githubRepo}/contents/${path}`,
-                        { headers: this.getHeaders() }
+                        { headers: this.getHeaders(needAuth) }
                     );
                     
                     if (!response.ok) {
@@ -859,12 +853,12 @@
                 }
             },
             
-            // 获取文件内容
-            async getFileContent(path) {
+            // 获取文件内容 - 公开仓库不需要认证
+            async getFileContent(path, needAuth = false) {
                 try {
                     const response = await fetch(
                         `${Config.githubAPI}/repos/${State.githubOwner}/${State.githubRepo}/contents/${path}`,
-                        { headers: this.getHeaders() }
+                        { headers: this.getHeaders(needAuth) }
                     );
                     
                     if (!response.ok) {
@@ -882,7 +876,7 @@
                 }
             },
             
-            // 创建或更新文件
+            // 创建或更新文件 - 需要认证
             async createOrUpdateFile(path, content, message, sha = null) {
                 try {
                     const payload = {
@@ -900,7 +894,7 @@
                         `${Config.githubAPI}/repos/${State.githubOwner}/${State.githubRepo}/contents/${path}`,
                         {
                             method: sha ? 'PUT' : 'PUT',
-                            headers: this.getHeaders(),
+                            headers: this.getHeaders(true),
                             body: JSON.stringify(payload)
                         }
                     );
@@ -919,7 +913,7 @@
                 }
             },
             
-            // 删除文件
+            // 删除文件 - 需要认证
             async deleteFile(path, message, sha) {
                 try {
                     if (!sha) {
@@ -930,7 +924,7 @@
                         `${Config.githubAPI}/repos/${State.githubOwner}/${State.githubRepo}/contents/${path}`,
                         {
                             method: 'DELETE',
-                            headers: this.getHeaders(),
+                            headers: this.getHeaders(true),
                             body: JSON.stringify({
                                 message: message || `Delete ${path}`,
                                 sha: sha,
@@ -956,7 +950,7 @@
 
         // 数据处理模块
         const Data = {
-            // 加载所有文章
+            // 加载所有文章 - 公开仓库不需要认证
             async loadArticles() {
                 const result = await GitHubAPI.getFilesList(Config.articlesDir);
                 
@@ -981,12 +975,11 @@
                         const dateMatch = file.name.match(/^(\d{4}-\d{2}-\d{2})-/);
                         const date = dateMatch ? new Date(dateMatch[1]) : new Date(file.last_modified);
                         
-                        // 提取标题（从文件名中）
+                        // 尝试从内容中提取第一行作为标题
+                        const lines = contentResult.content.split('\n');
                         let title = file.name.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '').replace(/-/g, ' ');
                         title = title.charAt(0).toUpperCase() + title.slice(1);
                         
-                        // 尝试从内容中提取第一行作为标题
-                        const lines = contentResult.content.split('\n');
                         if (lines.length > 0 && lines[0].trim() !== '') {
                             title = lines[0].trim();
                         }
@@ -1010,7 +1003,7 @@
                 return true;
             },
             
-            // 加载所有分类
+            // 加载所有分类 - 公开仓库不需要认证
             async loadCategories() {
                 const result = await GitHubAPI.getFileContent(Config.categoriesFile);
                 
@@ -1036,7 +1029,7 @@
                 }
             },
             
-            // 保存分类
+            // 保存分类 - 需要认证
             async saveCategories() {
                 const content = JSON.stringify(State.categories, null, 2);
                 const result = await GitHubAPI.createOrUpdateFile(
@@ -1044,13 +1037,13 @@
                     content,
                     '更新分类列表',
                     // 先获取当前文件的sha
-                    (await GitHubAPI.getFileContent(Config.categoriesFile)).sha
+                    (await GitHubAPI.getFileContent(Config.categoriesFile, true)).sha
                 );
                 
                 return result.success;
             },
             
-            // 发布文章
+            // 发布文章 - 需要认证
             async publishArticle(title, content) {
                 const fileName = Utils.generateArticleFileName(title);
                 const filePath = `${Config.articlesDir}/${fileName}`;
@@ -1072,7 +1065,7 @@
                 return result.success;
             },
             
-            // 删除文章
+            // 删除文章 - 需要认证
             async deleteArticle(article) {
                 const result = await GitHubAPI.deleteFile(
                     article.path,
@@ -1099,7 +1092,7 @@
 
         // 视图渲染模块
         const View = {
-            // 初始化分类容器事件委托（优化点：使用事件委托统一处理所有分类标签）
+            // 初始化分类容器事件委托
             initCategoryEvents() {
                 Elements.分类容器.addEventListener('click', (e) => {
                     const categoryTag = e.target.closest('.分类标签');
@@ -1114,7 +1107,7 @@
                 });
             },
             
-            // 渲染分类标签（优化点：移除重复事件绑定，通过事件委托处理）
+            // 渲染分类标签
             renderCategories() {
                 const fragment = Utils.createFragment();
                 
@@ -1143,6 +1136,10 @@
             
             // 渲染文章列表
             renderArticles() {
+                // 隐藏加载指示器，显示文章列表
+                Elements.文章加载指示器.classList.add('hidden');
+                Elements.文章列表.classList.remove('hidden');
+                
                 Elements.文章列表.innerHTML = '';
                 const fragment = Utils.createFragment();
                 
@@ -1150,7 +1147,7 @@
                 let filteredArticles = State.articles;
                 if (State.selectedCategory !== 'all') {
                     filteredArticles = State.articles.filter(article => {
-                        // 简单检查内容中是否包含分类ID
+                        // 检查内容中是否包含分类ID
                         return article.content.includes(State.selectedCategory);
                     });
                 }
@@ -1542,7 +1539,6 @@
                 this.initEditorEvents();
                 this.initRepoEvents();
                 this.initAuthEvents();
-                // 初始化分类容器的事件委托（关键修复）
                 View.initCategoryEvents();
             },
             
@@ -1570,14 +1566,11 @@
                     View.showModal(Elements.日历模态框);
                 });
                 
-                // 尘幕工作室按钮事件
+                // 尘幕工作室按钮事件 - 点击时需要验证
                 Elements.尘幕工作室按钮.addEventListener('click', async () => {
-                    if (State.isAuthenticated && State.githubOwner && State.githubRepo) {
-                        // 已认证且有仓库信息，直接显示管理界面
+                    if (State.isAuthenticated) {
+                        // 已认证，显示管理界面
                         await View.showAdminInterface();
-                    } else if (State.isAuthenticated) {
-                        // 已认证但无仓库信息，显示仓库选择
-                        this.showRepoSelection();
                     } else {
                         // 未认证，显示认证模态框
                         View.showModal(Elements.github验证模态框);
@@ -1916,32 +1909,23 @@
 
         // 初始化应用
         async function initApp() {
-            // 尝试从URL中提取仓库信息
-            const repoInfo = Utils.extractRepoInfoFromUrl();
-            if (repoInfo) {
-                Utils.saveRepoInfo(repoInfo.owner, repoInfo.repo);
-            } else if (!State.githubOwner || !State.githubRepo) {
-                // 如果没有仓库信息且无法从URL提取，不做处理，等待用户手动设置
-                console.log('无法自动检测仓库信息，需要用户手动设置');
-            }
+            // 强制设置为指定仓库
+            State.githubOwner = '7534tafuya1314';
+            State.githubRepo = '7534tafuya1314.github.io';
             
-            // 如果有仓库信息，尝试加载数据
-            if (State.githubOwner && State.githubRepo) {
-                await Data.syncAllData();
-                View.renderCategories();
-                View.renderArticles();
-            }
+            // 加载文章和分类（无需认证）
+            await Data.syncAllData();
+            View.renderCategories();
+            View.renderArticles();
             
             // 初始化事件
             Events.init();
             
             // 设置自动同步
             setInterval(async () => {
-                if (State.githubOwner && State.githubRepo) {
-                    await Data.syncAllData();
-                    View.renderCategories();
-                    View.renderArticles();
-                }
+                await Data.syncAllData();
+                View.renderCategories();
+                View.renderArticles();
             }, Config.syncInterval);
         }
 
