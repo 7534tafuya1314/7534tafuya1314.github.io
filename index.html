@@ -44,7 +44,6 @@
         body {
             background-color: #F5F5DC;
             font-family: 'Noto Sans SC', sans-serif;
-            padding-top: 64px; /* 为固定导航栏预留空间 */
         }
         
         .哲学标题 {
@@ -155,6 +154,26 @@
             100% { transform: rotate(360deg); }
         }
         
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        
+        .loading-text {
+            margin-top: 15px;
+            color: #8B5A2B;
+            font-weight: bold;
+        }
+        
         .今日日期标记 {
             border: 2px solid #8B5A2B;
             background-color: rgba(139, 90, 43, 0.1);
@@ -261,32 +280,37 @@
             border-radius: 4px;
             font-size: 0.875rem;
             color: #dc2626;
-            display: none;
         }
         
-        .sync-indicator {
-            position: fixed;
-            top: 64px; /* 导航栏下方 */
-            left: 0;
-            right: 0;
-            background-color: rgba(139, 90, 43, 0.9);
-            color: white;
-            padding: 8px 15px;
-            text-align: center;
-            font-size: 0.9rem;
-            z-index: 999;
-            transform: translateY(-100%);
-            transition: transform 0.3s ease;
+        .repo-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
         }
         
-        .sync-indicator.show {
-            transform: translateY(0);
+        .repo-item:hover {
+            background-color: #f5f5f5;
+            border-color: #8B5A2B;
+        }
+        
+        .repo-item.selected {
+            background-color: #f0e6d6;
+            border-color: #8B5A2B;
         }
     </style>
 </head>
 <body>
+    <!-- 全局加载指示器 -->
+    <div id="global-loading" class="loading-overlay">
+        <div class="loader"></div>
+        <div class="loading-text" id="loading-text">初始化中...</div>
+    </div>
+
     <!-- 导航栏 -->
-    <nav class="bg-dark text-white p-4 fixed top-0 left-0 right-0 z-1000">
+    <nav class="bg-dark text-white p-4 sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-2xl md:text-3xl font-bold 哲学标题">哲理论</h1>
             <div class="flex items-center gap-4">
@@ -300,11 +324,6 @@
             </div>
         </div>
     </nav>
-
-    <!-- 同步指示器 -->
-    <div id="sync-indicator" class="sync-indicator">
-        <i class="fa fa-refresh fa-spin mr-1"></i> 同步中...
-    </div>
 
     <!-- 英雄区域 -->
     <section class="hero-section flex items-center justify-center">
@@ -329,10 +348,6 @@
         <div class="container mx-auto px-4">
             <div id="文章列表" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- 文章卡片通过JS动态生成 -->
-                <div class="text-center col-span-full py-12">
-                    <div class="loader"></div>
-                    <p class="text-gray-500 mt-4">加载文章中...</p>
-                </div>
             </div>
         </div>
     </section>
@@ -377,32 +392,65 @@
         </div>
     </div>
 
+    <!-- 仓库检测失败提示模态框 -->
+    <div id="repo-detect-fail-modal" class="modal">
+        <div class="modal-content max-w-md">
+            <span class="close-btn">&times;</span>
+            <div class="p-6">
+                <h2 class="text-2xl font-bold mb-4 text-red-500">仓库检测失败</h2>
+                <p class="mb-4">无法从URL自动检测GitHub仓库信息。请输入GitHub令牌，我们将从您的仓库中查找。</p>
+                <div id="repo-detect-error" class="error-log mb-4"></div>
+                <button id="go-to-auth-btn" class="w-full bg-primary text-white py-2 px-4 rounded hover:bg-accent transition-all-300">
+                    输入GitHub令牌
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 仓库选择模态框 -->
+    <div id="repo-select-modal" class="modal">
+        <div class="modal-content max-w-2xl">
+            <span class="close-btn">&times;</span>
+            <div class="p-6">
+                <h2 class="text-2xl font-bold mb-4">选择博客仓库</h2>
+                <p class="mb-4 text-gray-600">请选择用于存储博客文章的仓库（推荐使用名称包含"philosophy"或"blog"的仓库）</p>
+                
+                <div id="repo-loading" class="text-center py-8">
+                    <div class="loader"></div>
+                    <p class="text-gray-500 mt-4">加载您的仓库列表中...</p>
+                </div>
+                
+                <div id="repo-list-container" class="hidden max-h-96 overflow-y-auto pr-2">
+                    <div id="repo-list" class="space-y-2">
+                        <!-- 仓库列表将通过JS动态生成 -->
+                    </div>
+                </div>
+                
+                <div id="repo-select-error" class="error-log mb-4 hidden"></div>
+                
+                <div class="mt-6 flex justify-end">
+                    <button id="confirm-repo-btn" class="bg-primary text-white py-2 px-6 rounded hover:bg-accent transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        确认选择
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- GitHub令牌验证模态框 -->
     <div id="github验证模态框" class="modal">
         <div class="modal-content max-w-md">
             <span class="close-btn">&times;</span>
             <div class="p-6">
                 <h2 class="text-2xl font-bold mb-4">GitHub API 验证</h2>
-                
-                <div id="repo-detection-status" class="mb-6 p-3 bg-gray-100 rounded">
-                    <p class="text-sm">正在自动检测仓库信息...</p>
-                </div>
-                
+                <p class="mb-4 text-gray-600">请输入您的GitHub个人访问令牌以访问管理功能</p>
                 <div class="mb-4">
                     <label for="github-token" class="block mb-2">个人访问令牌</label>
                     <input type="password" id="github-token" class="w-full p-2 border border-gray-300 rounded" placeholder="ghp_...">
                     <p class="text-xs text-gray-500 mt-1">令牌需要有 repo 权限（创建时勾选repo选项）</p>
                 </div>
-                
-                <div class="mb-4">
-                    <label class="block mb-2">仓库信息 <span class="text-xs text-gray-500">(自动检测)</span></label>
-                    <div class="bg-gray-50 p-3 rounded border">
-                        <p id="detected-repo-info" class="text-gray-700">等待检测...</p>
-                    </div>
-                </div>
-                
-                <button id="验证按钮" class="w-full bg-primary text-white py-2 px-4 rounded hover:bg-accent transition-all-300" disabled>
-                    等待仓库检测...
+                <button id="验证按钮" class="w-full bg-primary text-white py-2 px-4 rounded hover:bg-accent transition-all-300">
+                    验证并继续
                 </button>
                 <div id="验证状态" class="mt-3 text-center hidden"></div>
                 <div id="验证错误日志" class="error-log"></div>
@@ -430,6 +478,9 @@
                         </div>
                         <div class="admin-menu-item" data-section="manage-categories">
                             <i class="fa fa-tags mr-2"></i>管理分类
+                        </div>
+                        <div class="admin-menu-item" id="切换仓库按钮">
+                            <i class="fa fa-exchange mr-2"></i>切换仓库
                         </div>
                         <div class="admin-menu-item" id="退出登录按钮">
                             <i class="fa fa-sign-out mr-2"></i>退出登录
@@ -539,7 +590,7 @@
             defaultRepoName: 'philosophy-blog', // 默认仓库名
             articlesDir: 'articles',
             categoriesFile: 'categories.json',
-            syncInterval: 15000 // 自动同步间隔15秒（缩短间隔提高实时性）
+            syncInterval: 30000 // 自动同步间隔30秒
         };
 
         // 状态管理模块
@@ -549,11 +600,10 @@
             currentDate: new Date(),
             selectedCategory: 'all',
             githubToken: localStorage.getItem('githubToken') || null,
-            githubOwner: localStorage.getItem('githubOwner') || '',
-            githubRepo: localStorage.getItem('githubRepo') || '',
+            githubOwner: localStorage.getItem('githubOwner') || '', // 从本地存储获取
+            githubRepo: localStorage.getItem('githubRepo') || '', // 从本地存储获取
             isAuthenticated: !!localStorage.getItem('githubToken'),
             lastSyncTime: null,
-            repoDetectionCompleted: false, // 仓库检测是否完成
             philosophicalQuotes: [
                 { quote: "未经审视的人生，是不值得过的。", author: "苏格拉底" },
                 { quote: "存在先于本质。", author: "萨特" },
@@ -566,13 +616,19 @@
                 { quote: "过去属于死神，未来属于你自己。", author: "雪莱" },
                 { quote: "人是生而自由的，但却无往不在枷锁之中。", author: "卢梭" }
             ],
-            articleSummaryCache: new Map()
+            articleSummaryCache: new Map(),
+            selectedRepo: null // 当前选中的仓库
         };
 
         // DOM元素缓存模块
         const Elements = (() => {
             const get = (id) => document.getElementById(id);
             return {
+                // 全局加载
+                globalLoading: get('global-loading'),
+                loadingText: get('loading-text'),
+                
+                // 导航与主要功能
                 日历按钮: get('日历按钮'),
                 日历模态框: get('日历模态框'),
                 文章详情模态框: get('文章详情模态框'),
@@ -586,14 +642,28 @@
                 哲言区域: get('哲言区域'),
                 文章详情内容: get('文章详情内容'),
                 尘幕工作室按钮: get('尘幕工作室按钮'),
+                
+                // 仓库检测与选择
+                repoDetectFailModal: get('repo-detect-fail-modal'),
+                repoDetectError: get('repo-detect-error'),
+                goToAuthBtn: get('go-to-auth-btn'),
+                repoSelectModal: get('repo-select-modal'),
+                repoList: get('repo-list'),
+                repoListContainer: get('repo-list-container'),
+                repoLoading: get('repo-loading'),
+                repoSelectError: get('repo-select-error'),
+                confirmRepoBtn: get('confirm-repo-btn'),
+                切换仓库按钮: get('切换仓库按钮'),
+                
+                // GitHub验证
                 github验证模态框: get('github验证模态框'),
-                后台管理模态框: get('后台管理模态框'),
                 githubTokenInput: get('github-token'),
-                detectedRepoInfo: get('detected-repo-info'),
-                repoDetectionStatus: get('repo-detection-status'),
                 验证按钮: get('验证按钮'),
                 验证状态: get('验证状态'),
                 验证错误日志: get('验证错误日志'),
+                
+                // 后台管理
+                后台管理模态框: get('后台管理模态框'),
                 退出登录按钮: get('退出登录按钮'),
                 adminMenuItems: document.querySelectorAll('.admin-menu-item'),
                 adminSections: document.querySelectorAll('.admin-section'),
@@ -606,14 +676,15 @@
                 newCategoryName: get('new-category-name'),
                 addCategoryBtn: get('add-category-btn'),
                 categoriesList: get('categories-list'),
-                statusMessage: get('status-message'),
-                closeButtons: document.querySelectorAll('.close-btn'),
-                modals: document.querySelectorAll('.modal'),
-                editorButtons: document.querySelectorAll('.editor-button'),
                 adminLoading: get('admin-loading'),
                 adminContentContainer: get('admin-content-container'),
                 currentRepoInfo: get('current-repo-info'),
-                syncIndicator: get('sync-indicator')
+                
+                // 通用
+                statusMessage: get('status-message'),
+                closeButtons: document.querySelectorAll('.close-btn'),
+                modals: document.querySelectorAll('.modal'),
+                editorButtons: document.querySelectorAll('.editor-button')
             };
         })();
 
@@ -679,53 +750,64 @@
                 return `${date}-${sanitizedTitle}.md`;
             },
             
-            showErrorLog(message) {
-                const logEl = Elements.验证错误日志;
-                logEl.textContent = message;
-                logEl.style.display = 'block';
+            showErrorLog(element, message) {
+                element.textContent = message;
+                element.style.display = 'block';
             },
             
-            hideErrorLog() {
-                Elements.验证错误日志.style.display = 'none';
+            hideErrorLog(element) {
+                element.textContent = '';
+                element.style.display = 'none';
             },
             
-            // 从URL中提取GitHub Pages的仓库信息（强化版）
+            // 从URL中提取GitHub Pages的仓库信息
             extractRepoInfoFromUrl() {
-                const hostname = window.location.hostname.trim().toLowerCase();
-                const pathname = window.location.pathname.trim().toLowerCase().split('/').filter(part => part);
-                
-                // 模式1: username.github.io/repoName
-                if (hostname.endsWith('github.io')) {
-                    const parts = hostname.split('.');
-                    if (parts.length >= 3) {
-                        const owner = parts[0];
-                        const repo = pathname.length > 0 ? pathname[0] : Config.defaultRepoName;
-                        return { owner, repo };
+                try {
+                    const url = new URL(window.location.href);
+                    const hostname = url.hostname;
+                    const pathSegments = url.pathname.split('/').filter(segment => segment.trim() !== '');
+                    
+                    // 模式1: username.github.io/repoName/
+                    if (hostname.endsWith('.github.io')) {
+                        const parts = hostname.split('.');
+                        if (parts.length >= 2) {
+                            const owner = parts[0];
+                            // 路径中的第一个段作为仓库名，如果没有则使用默认
+                            const repo = pathSegments.length > 0 ? pathSegments[0] : Config.defaultRepoName;
+                            return { owner, repo };
+                        }
                     }
+                    
+                    return null;
+                } catch (error) {
+                    console.error('URL解析错误:', error);
+                    return null;
                 }
-                
-                // 模式2: 自定义域名但路径包含github仓库信息
-                if (pathname.length >= 2 && pathname[0] === 'github' && pathname[1]) {
-                    return { owner: pathname[0], repo: pathname[1] };
-                }
-                
-                // 模式3: 尝试从URL参数中获取 (repo=owner/repo)
-                const params = new URLSearchParams(window.location.search);
-                const repoParam = params.get('repo');
-                if (repoParam && repoParam.includes('/')) {
-                    const [owner, repo] = repoParam.split('/');
-                    if (owner && repo) {
-                        return { owner, repo };
-                    }
-                }
-                
-                return null;
             },
             
             // 添加时间戳参数防止缓存
             addCacheBuster(url) {
                 const separator = url.includes('?') ? '&' : '?';
                 return `${url}${separator}t=${new Date().getTime()}`;
+            },
+            
+            // 显示全局加载
+            showGlobalLoading(text = '加载中...') {
+                Elements.loadingText.textContent = text;
+                Elements.globalLoading.style.display = 'flex';
+            },
+            
+            // 隐藏全局加载
+            hideGlobalLoading() {
+                Elements.globalLoading.style.display = 'none';
+            },
+            
+            // 保存仓库信息到本地存储
+            saveRepoInfo(owner, repo) {
+                localStorage.setItem('githubOwner', owner);
+                localStorage.setItem('githubRepo', repo);
+                State.githubOwner = owner;
+                State.githubRepo = repo;
             }
         };
 
@@ -739,7 +821,7 @@
                 };
             },
             
-            // 获取用户信息（用于自动检测用户名）
+            // 获取用户信息（用于验证令牌）
             async getUserInfo() {
                 try {
                     const response = await fetch(`${Config.githubAPI}/user`, {
@@ -756,6 +838,27 @@
                 } catch (error) {
                     console.error('获取用户信息时发生错误:', error);
                     return null;
+                }
+            },
+            
+            // 获取用户的仓库列表
+            async getUserRepos() {
+                try {
+                    const response = await fetch(`${Config.githubAPI}/user/repos?per_page=100`, {
+                        headers: this.getHeaders()
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.text();
+                        console.error('获取仓库列表失败:', error);
+                        return { success: false, error };
+                    }
+                    
+                    const repos = await response.json();
+                    return { success: true, repos };
+                } catch (error) {
+                    console.error('获取仓库列表时发生错误:', error);
+                    return { success: false, error: error.message };
                 }
             },
             
@@ -936,104 +1039,175 @@
 
         // 数据同步模块
         const SyncManager = {
-            // 显示同步指示器
-            showSyncIndicator() {
-                Elements.syncIndicator.classList.add('show');
-            },
-            
-            // 隐藏同步指示器
-            hideSyncIndicator() {
-                Elements.syncIndicator.classList.remove('show');
-            },
-            
             // 强制同步所有数据
             async forceSync(showIndicator = true) {
-                if (showIndicator) this.showSyncIndicator();
+                if (showIndicator) {
+                    Utils.showGlobalLoading('同步内容中...');
+                }
                 
                 try {
-                    // 先同步分类，再同步文章（文章依赖分类）
-                    await DataLoader.loadCategories();
-                    await DataLoader.loadArticles();
+                    // 先检查仓库信息是否有效
+                    if (!State.githubOwner || !State.githubRepo) {
+                        throw new Error('仓库信息不完整，无法同步');
+                    }
+                    
+                    await Promise.all([
+                        DataLoader.loadCategories(),
+                        DataLoader.loadArticles()
+                    ]);
                     
                     State.lastSyncTime = new Date();
                     return true;
                 } catch (error) {
                     console.error('同步失败:', error);
+                    Utils.showStatusMessage(`同步失败: ${error.message}`, true);
                     return false;
                 } finally {
                     if (showIndicator) {
-                        // 延迟隐藏，确保用户能看到同步过程
-                        setTimeout(() => this.hideSyncIndicator(), 800);
+                        Utils.hideGlobalLoading();
                     }
                 }
             },
             
             // 设置自动同步
             setupAutoSync() {
-                // 立即执行一次同步
-                this.forceSync();
-                
-                // 设置定时同步
                 setInterval(async () => {
-                    // 只有在页面可见时才同步
-                    if (document.visibilityState === 'visible') {
+                    // 只有在页面可见且仓库信息完整时才同步
+                    if (document.visibilityState === 'visible' && State.githubOwner && State.githubRepo) {
                         await this.forceSync();
                     }
                 }, Config.syncInterval);
             }
         };
 
-        // 仓库检测模块
-        const RepoDetector = {
-            async detectRepo() {
-                Elements.repoDetectionStatus.innerHTML = '<p class="text-sm">正在自动检测仓库信息...</p>';
+        // 仓库检测与选择模块
+        const RepoManager = {
+            async detectAndValidate() {
+                // 1. 先检查本地存储中是否已有仓库信息
+                if (State.githubOwner && State.githubRepo) {
+                    // 验证仓库是否可访问
+                    const repoCheck = await GitHubAPI.testRepositoryAccess(State.githubOwner, State.githubRepo);
+                    if (repoCheck.accessible) {
+                        return true;
+                    }
+                    // 如果不可访问，清除本地存储的信息
+                    Utils.saveRepoInfo('', '');
+                }
+                
+                // 2. 尝试从URL提取仓库信息
+                Utils.showGlobalLoading('检测仓库信息...');
+                const repoInfo = Utils.extractRepoInfoFromUrl();
+                
+                if (repoInfo) {
+                    State.githubOwner = repoInfo.owner;
+                    State.githubRepo = repoInfo.repo;
+                    
+                    // 验证仓库是否可访问
+                    Utils.showGlobalLoading(`验证仓库: ${State.githubOwner}/${State.githubRepo}...`);
+                    const repoCheck = await GitHubAPI.testRepositoryAccess(State.githubOwner, State.githubRepo);
+                    
+                    if (repoCheck.accessible) {
+                        // 保存到本地存储
+                        Utils.saveRepoInfo(State.githubOwner, State.githubRepo);
+                        Utils.hideGlobalLoading();
+                        return true;
+                    }
+                }
+                
+                // 3. 检测失败，需要用户输入令牌并选择仓库
+                Utils.hideGlobalLoading();
+                return false;
+            },
+            
+            async showRepoSelection() {
+                // 显示仓库选择模态框
+                Elements.repoSelectModal.style.display = 'block';
+                Elements.repoLoading.style.display = 'block';
+                Elements.repoListContainer.classList.add('hidden');
+                Elements.confirmRepoBtn.disabled = true;
+                State.selectedRepo = null;
                 
                 try {
-                    // 尝试从URL提取仓库信息
-                    const repoInfo = Utils.extractRepoInfoFromUrl();
+                    // 获取用户的仓库列表
+                    const result = await GitHubAPI.getUserRepos();
                     
-                    if (repoInfo) {
-                        State.githubOwner = repoInfo.owner;
-                        State.githubRepo = repoInfo.repo;
+                    if (!result.success) {
+                        throw new Error(result.error);
+                    }
+                    
+                    // 按名称排序，优先显示可能的博客仓库
+                    const sortedRepos = result.repos.sort((a, b) => {
+                        // 优先显示包含特定关键词的仓库
+                        const aIsBlog = a.name.includes('blog') || a.name.includes('philosophy');
+                        const bIsBlog = b.name.includes('blog') || b.name.includes('philosophy');
                         
-                        Elements.detectedRepoInfo.textContent = `${repoInfo.owner}/${repoInfo.repo}`;
-                        Elements.repoDetectionStatus.innerHTML = '<p class="text-sm text-green-600">仓库信息检测成功！</p>';
-                        Elements.验证按钮.disabled = false;
-                        Elements.验证按钮.textContent = '验证并进入';
-                        State.repoDetectionCompleted = true;
-                        return true;
-                    }
+                        if (aIsBlog && !bIsBlog) return -1;
+                        if (!aIsBlog && bIsBlog) return 1;
+                        
+                        // 按名称字母顺序排序
+                        return a.name.localeCompare(b.name);
+                    });
                     
-                    // 如果从URL提取失败，尝试从本地存储获取
-                    if (State.githubOwner && State.githubRepo) {
-                        Elements.detectedRepoInfo.textContent = `${State.githubOwner}/${State.githubRepo}`;
-                        Elements.repoDetectionStatus.innerHTML = '<p class="text-sm text-green-600">从历史记录加载仓库信息成功！</p>';
-                        Elements.验证按钮.disabled = false;
-                        Elements.验证按钮.textContent = '验证并进入';
-                        State.repoDetectionCompleted = true;
-                        return true;
-                    }
+                    // 渲染仓库列表
+                    Elements.repoList.innerHTML = '';
+                    sortedRepos.forEach(repo => {
+                        const repoItem = document.createElement('div');
+                        repoItem.className = 'repo-item';
+                        repoItem.dataset.owner = repo.owner.login;
+                        repoItem.dataset.name = repo.name;
+                        repoItem.innerHTML = `
+                            <div class="font-medium">${repo.full_name}</div>
+                            <div class="text-sm text-gray-600 mt-1">${repo.description || '无描述'}</div>
+                        `;
+                        
+                        repoItem.addEventListener('click', () => {
+                            // 移除其他选中状态
+                            document.querySelectorAll('.repo-item').forEach(item => {
+                                item.classList.remove('selected');
+                            });
+                            
+                            // 设置当前选中状态
+                            repoItem.classList.add('selected');
+                            State.selectedRepo = {
+                                owner: repo.owner.login,
+                                name: repo.name
+                            };
+                            Elements.confirmRepoBtn.disabled = false;
+                        });
+                        
+                        Elements.repoList.appendChild(repoItem);
+                    });
                     
-                    // 检测失败
-                    Elements.detectedRepoInfo.textContent = '无法自动检测仓库信息';
-                    Elements.repoDetectionStatus.innerHTML = `
-                        <p class="text-sm text-red-600">仓库信息检测失败</p>
-                        <p class="text-xs mt-1">请确保您的网站部署在GitHub Pages上</p>
-                    `;
-                    Elements.验证按钮.disabled = true;
-                    Elements.验证按钮.textContent = '仓库检测失败';
-                    State.repoDetectionCompleted = false;
-                    return false;
+                    // 隐藏加载状态，显示仓库列表
+                    Elements.repoLoading.style.display = 'none';
+                    Elements.repoListContainer.classList.remove('hidden');
                     
                 } catch (error) {
-                    console.error('仓库检测出错:', error);
-                    Elements.detectedRepoInfo.textContent = '检测过程出错';
-                    Elements.repoDetectionStatus.innerHTML = `<p class="text-sm text-red-600">检测出错: ${error.message}</p>`;
-                    Elements.验证按钮.disabled = true;
-                    Elements.验证按钮.textContent = '检测出错';
-                    State.repoDetectionCompleted = false;
-                    return false;
+                    console.error('加载仓库列表失败:', error);
+                    Elements.repoLoading.style.display = 'none';
+                    Elements.repoSelectError.textContent = `加载失败: ${error.message}`;
+                    Elements.repoSelectError.classList.remove('hidden');
                 }
+            },
+            
+            confirmRepoSelection() {
+                if (!State.selectedRepo) return;
+                
+                // 保存仓库信息
+                Utils.saveRepoInfo(State.selectedRepo.owner, State.selectedRepo.name);
+                
+                // 更新UI显示
+                Elements.currentRepoInfo.textContent = `${State.githubOwner}/${State.githubRepo}`;
+                
+                // 关闭模态框
+                Elements.repoSelectModal.style.display = 'none';
+                
+                // 加载内容
+                DataLoader.init();
+            },
+            
+            showDetectionFailure() {
+                Elements.repoDetectFailModal.style.display = 'block';
             }
         };
 
@@ -1041,37 +1215,37 @@
         const DataLoader = {
             async init() {
                 try {
-                    // 先进行仓库检测
-                    await RepoDetector.detectRepo();
-                    
-                    // 如果仓库信息有效，加载数据
-                    if (State.githubOwner && State.githubRepo) {
-                        await SyncManager.forceSync();
-                    } else {
-                        // 仓库信息无效，显示错误
-                        Elements.文章列表.innerHTML = `
-                            <div class="text-center col-span-full py-12">
-                                <p class="text-red-500">无法加载文章 - 仓库信息无效</p>
-                                <p class="text-gray-500 mt-2">请联系管理员检查部署配置</p>
-                            </div>
-                        `;
+                    // 1. 先检查仓库信息是否有效
+                    if (!State.githubOwner || !State.githubRepo) {
+                        // 尝试检测仓库
+                        const detectionSuccess = await RepoManager.detectAndValidate();
+                        if (!detectionSuccess) {
+                            // 检测失败，显示提示
+                            RepoManager.showDetectionFailure();
+                            return false;
+                        }
                     }
+                    
+                    // 2. 加载内容
+                    await SyncManager.forceSync();
+                    
+                    // 3. 如果已登录，加载管理界面数据
+                    if (State.isAuthenticated) {
+                        AdminManager.loadAdminData();
+                    }
+                    
+                    return true;
                 } catch (error) {
-                    console.log('数据加载失败，初始化空数据:', error);
-                    State.articles = [];
-                    State.categories = [];
-                    Renderer.renderCategories();
-                    Renderer.renderArticles();
-                }
-                
-                // 如果已登录，加载管理界面数据
-                if (State.isAuthenticated) {
-                    AdminManager.loadAdminData();
+                    console.error('初始化失败:', error);
+                    Utils.showStatusMessage(`初始化失败: ${error.message}`, true);
+                    return false;
                 }
             },
             
             async loadCategories() {
                 try {
+                    Utils.showGlobalLoading('加载分类...');
+                    
                     const categoriesContent = await GitHubAPI.getFileContent(Config.categoriesFile);
                     
                     if (categoriesContent) {
@@ -1083,17 +1257,23 @@
                     Renderer.renderCategories();
                     Renderer.renderCategorySelector();
                     Renderer.renderCategoriesList();
+                    return true;
                 } catch (error) {
                     console.error('加载分类错误:', error);
                     State.categories = [];
                     Renderer.renderCategories();
                     Renderer.renderCategorySelector();
                     Renderer.renderCategoriesList();
+                    return false;
+                } finally {
+                    Utils.hideGlobalLoading();
                 }
             },
             
             async loadArticles() {
                 try {
+                    Utils.showGlobalLoading('加载文章...');
+                    
                     let articles = [];
                     
                     // 获取文章列表
@@ -1122,10 +1302,15 @@
                     if (State.isAuthenticated) {
                         AdminManager.renderArticlesTable();
                     }
+                    
+                    return true;
                 } catch (error) {
                     console.error('加载文章错误:', error);
                     State.articles = [];
                     Renderer.renderArticles();
+                    return false;
+                } finally {
+                    Utils.hideGlobalLoading();
                 }
             },
             
@@ -1385,7 +1570,7 @@
                         </div>
                         <h2 class="text-3xl font-bold mb-4">${article.title}</h2>
                         <p class="text-gray-600 mb-6">发布日期: ${article.publishDate}</p>
-                        <div class="prose max-w-none">${article.content}</div>
+                        <div class="prose max-w-none">${marked.parse(article.content)}</div>
                     </div>
                 `;
                 
@@ -1514,7 +1699,7 @@
                 
                 // 发布文章
                 Utils.showStatusMessage('正在发布文章...');
-                SyncManager.showSyncIndicator();
+                Utils.showGlobalLoading('发布文章并同步...');
                 
                 const success = await GitHubAPI.saveFile(
                     filePath,
@@ -1523,7 +1708,6 @@
                 );
                 
                 if (success) {
-                    Utils.showStatusMessage('文章发布成功！正在同步...');
                     // 发布成功后强制同步
                     const syncSuccess = await SyncManager.forceSync(false);
                     
@@ -1538,10 +1722,10 @@
                         
                         Utils.showStatusMessage('文章已发布并同步给所有访客！');
                     } else {
-                        Utils.showStatusMessage('文章发布成功，但同步失败，请稍后刷新页面', true);
+                        Utils.showStatusMessage('文章发布成功，但同步失败', true);
                     }
                 } else {
-                    SyncManager.hideSyncIndicator();
+                    Utils.hideGlobalLoading();
                     Utils.showStatusMessage('文章发布失败，请重试', true);
                 }
             },
@@ -1550,7 +1734,7 @@
                 const filePath = `${Config.articlesDir}/${fileName}`;
                 
                 Utils.showStatusMessage('正在删除文章...');
-                SyncManager.showSyncIndicator();
+                Utils.showGlobalLoading('删除文章并同步...');
                 
                 const success = await GitHubAPI.deleteFile(
                     filePath,
@@ -1558,17 +1742,16 @@
                 );
                 
                 if (success) {
-                    Utils.showStatusMessage('文章删除成功！正在同步...');
                     // 删除成功后强制同步
                     const syncSuccess = await SyncManager.forceSync(false);
                     
                     if (syncSuccess) {
                         Utils.showStatusMessage('文章已删除并同步给所有访客！');
                     } else {
-                        Utils.showStatusMessage('文章删除成功，但同步失败，请稍后刷新页面', true);
+                        Utils.showStatusMessage('文章删除成功，但同步失败', true);
                     }
                 } else {
-                    SyncManager.hideSyncIndicator();
+                    Utils.hideGlobalLoading();
                     Utils.showStatusMessage('文章删除失败，请重试', true);
                 }
             },
@@ -1589,7 +1772,7 @@
                 
                 // 保存到GitHub
                 Utils.showStatusMessage('正在添加分类...');
-                SyncManager.showSyncIndicator();
+                Utils.showGlobalLoading('添加分类并同步...');
                 
                 const success = await GitHubAPI.saveFile(
                     Config.categoriesFile,
@@ -1598,7 +1781,6 @@
                 );
                 
                 if (success) {
-                    Utils.showStatusMessage('分类添加成功！正在同步...');
                     // 添加成功后强制同步
                     const syncSuccess = await SyncManager.forceSync(false);
                     
@@ -1606,12 +1788,12 @@
                         Elements.newCategoryName.value = '';
                         Utils.showStatusMessage('分类已添加并同步给所有访客！');
                     } else {
-                        Utils.showStatusMessage('分类添加成功，但同步失败，请稍后刷新页面', true);
+                        Utils.showStatusMessage('分类添加成功，但同步失败', true);
                     }
                 } else {
                     // 回滚
                     State.categories.pop();
-                    SyncManager.hideSyncIndicator();
+                    Utils.hideGlobalLoading();
                     Utils.showStatusMessage('分类添加失败，请重试', true);
                 }
             },
@@ -1636,7 +1818,7 @@
                 
                 // 保存到GitHub
                 Utils.showStatusMessage('正在删除分类...');
-                SyncManager.showSyncIndicator();
+                Utils.showGlobalLoading('删除分类并同步...');
                 
                 const success = await GitHubAPI.saveFile(
                     Config.categoriesFile,
@@ -1645,19 +1827,18 @@
                 );
                 
                 if (success) {
-                    Utils.showStatusMessage('分类删除成功！正在同步...');
                     // 删除成功后强制同步
                     const syncSuccess = await SyncManager.forceSync(false);
                     
                     if (syncSuccess) {
                         Utils.showStatusMessage('分类已删除并同步给所有访客！');
                     } else {
-                        Utils.showStatusMessage('分类删除成功，但同步失败，请稍后刷新页面', true);
+                        Utils.showStatusMessage('分类删除成功，但同步失败', true);
                     }
                 } else {
                     // 回滚
                     State.categories.splice(categoryIndex, 0, { id: categoryId, name: categoryName });
-                    SyncManager.hideSyncIndicator();
+                    Utils.hideGlobalLoading();
                     Utils.showStatusMessage('分类删除失败，请重试', true);
                 }
             },
@@ -1684,16 +1865,22 @@
                 localStorage.removeItem('githubToken');
                 localStorage.removeItem('githubOwner');
                 localStorage.removeItem('githubRepo');
+                
                 State.githubToken = null;
                 State.githubOwner = '';
                 State.githubRepo = '';
                 State.isAuthenticated = false;
                 
                 Elements.后台管理模态框.style.display = 'none';
-                Elements.github验证模态框.style.display = 'block';
-                // 重新检测仓库
-                RepoDetector.detectRepo();
                 Utils.showStatusMessage('已退出登录');
+                
+                // 重新初始化
+                DataLoader.init();
+            },
+            
+            async switchRepo() {
+                Elements.后台管理模态框.style.display = 'none';
+                await RepoManager.showRepoSelection();
             }
         };
 
@@ -1723,20 +1910,26 @@
                         AdminManager.loadAdminData(); // 确保数据最新
                     } else {
                         Elements.github验证模态框.style.display = 'block';
-                        // 触发仓库检测
-                        RepoDetector.detectRepo();
                     }
                 });
                 
+                // 前往认证按钮
+                Elements.goToAuthBtn.addEventListener('click', () => {
+                    Elements.repoDetectFailModal.style.display = 'none';
+                    Elements.github验证模态框.style.display = 'block';
+                });
+                
+                // 确认仓库选择按钮
+                Elements.confirmRepoBtn.addEventListener('click', RepoManager.confirmRepoSelection);
+                
+                // 切换仓库按钮
+                Elements.切换仓库按钮.addEventListener('click', AdminManager.switchRepo);
+                
                 // GitHub验证按钮点击事件
                 Elements.验证按钮.addEventListener('click', async () => {
-                    if (!State.repoDetectionCompleted) {
-                        return Utils.showStatusMessage('请等待仓库检测完成', true);
-                    }
-                    
                     const token = Elements.githubTokenInput.value.trim();
                     
-                    Utils.hideErrorLog();
+                    Utils.hideErrorLog(Elements.验证错误日志);
                     
                     if (!token) {
                         return this.showValidationStatus('请输入GitHub令牌', true);
@@ -1751,34 +1944,20 @@
                     const tokenCheck = await GitHubAPI.testToken();
                     if (!tokenCheck.valid) {
                         this.showValidationStatus('令牌验证失败', true);
-                        Utils.showErrorLog(`错误信息: ${tokenCheck.error || '未知错误'}`);
+                        Utils.showErrorLog(Elements.验证错误日志, `错误信息: ${tokenCheck.error || '未知错误'}`);
                         return;
                     }
                     
-                    // 2. 验证仓库访问权限
-                    this.showValidationStatus(`正在验证仓库访问权限: ${State.githubOwner}/${State.githubRepo}...`);
-                    const repoCheck = await GitHubAPI.testRepositoryAccess(State.githubOwner, State.githubRepo);
-                    if (!repoCheck.accessible) {
-                        this.showValidationStatus('无法访问指定仓库', true);
-                        Utils.showErrorLog(`错误信息: ${repoCheck.error || '未知错误'}`);
-                        return;
-                    }
-                    
-                    // 验证成功，保存信息
+                    // 2. 验证成功，保存令牌
                     localStorage.setItem('githubToken', token);
-                    localStorage.setItem('githubOwner', State.githubOwner);
-                    localStorage.setItem('githubRepo', State.githubRepo);
                     State.isAuthenticated = true;
                     
-                    this.showValidationStatus('验证成功，正在进入后台...');
+                    this.showValidationStatus('令牌验证成功，正在加载您的仓库...');
                     
-                    // 关闭验证模态框，打开管理模态框
+                    // 关闭验证模态框，显示仓库选择
                     setTimeout(() => {
                         Elements.github验证模态框.style.display = 'none';
-                        Elements.后台管理模态框.style.display = 'block';
-                        
-                        // 加载管理数据
-                        AdminManager.loadAdminData();
+                        RepoManager.showRepoSelection();
                         
                         // 清空输入
                         Elements.githubTokenInput.value = '';
@@ -1871,7 +2050,7 @@
                 
                 // 页面可见性变化时同步数据
                 document.addEventListener('visibilitychange', async () => {
-                    if (document.visibilityState === 'visible' && State.lastSyncTime) {
+                    if (document.visibilityState === 'visible' && State.lastSyncTime && State.githubOwner && State.githubRepo) {
                         const now = new Date();
                         // 如果上次同步超过10秒，则触发同步
                         if (now - State.lastSyncTime > 10000) {
@@ -1939,9 +2118,6 @@
             // 设置自动同步
             SyncManager.setupAutoSync();
             
-            // 加载数据
-            await DataLoader.init();
-            
             // 初始化日历
             Renderer.updateCalendar();
             
@@ -1954,6 +2130,9 @@
             
             // 绑定事件
             EventHandler.bindAll();
+            
+            // 加载数据
+            await DataLoader.init();
         }
 
         // 页面加载完成后初始化
