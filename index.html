@@ -293,6 +293,25 @@
             background-color: #f0e6d6;
             border-color: #8B5A2B;
         }
+
+        /* 修复分类选择器样式 */
+        .category-checkbox {
+            display: none;
+        }
+        
+        .category-checkbox + label {
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid #8B5A2B;
+            color: #3E2723;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .category-checkbox:checked + label {
+            background-color: #8B5A2B;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -588,7 +607,7 @@
         // 状态管理模块
         const State = {
             articles: [],
-            categories: [],
+            categories: [], // 分类格式: { id: 1, name: "分类名称" }
             currentDate: new Date(),
             selectedCategory: 'all',
             githubToken: localStorage.getItem('githubToken') || null,
@@ -761,6 +780,28 @@
                 localStorage.setItem('githubRepo', repo);
                 State.githubOwner = owner;
                 State.githubRepo = repo;
+            },
+            
+            // 获取下一个可用的分类ID（确保为数字1,2,3...）
+            getNextCategoryId() {
+                if (State.categories.length === 0) {
+                    return 1;
+                }
+                // 找出最大的ID并加1
+                const maxId = Math.max(...State.categories.map(cat => cat.id));
+                return maxId + 1;
+            },
+            
+            // 根据ID查找分类名称
+            getCategoryNameById(id) {
+                const category = State.categories.find(cat => cat.id === id);
+                return category ? category.name : '';
+            },
+            
+            // 根据ID数组获取分类名称列表
+            getCategoryNamesByIds(ids) {
+                if (!ids || !Array.isArray(ids)) return [];
+                return ids.map(id => this.getCategoryNameById(id)).filter(Boolean);
             }
         };
 
@@ -868,8 +909,13 @@
                     }
                     
                     const fileData = await response.json();
+                    // 解码base64内容
                     const content = fileData.content ? Utils.decodeBase64(fileData.content) : '';
-                    return { success: true, content, sha: fileData.sha };
+                    return { 
+                        success: true, 
+                        content,
+                        sha: fileData.sha // 保存SHA值用于后续更新
+                    };
                 } catch (error) {
                     console.error(`获取文件 ${path} 内容时发生错误:`, error);
                     return { success: false, error: error.message };
@@ -879,15 +925,14 @@
             // 创建或更新文件 - 需要认证
             async createOrUpdateFile(path, content, message, sha = null) {
                 try {
-                    const payload = {
+                    const body = {
                         message: message || `Update ${path}`,
-                        content: Utils.encodeBase64(content),
-                        branch: 'main' // 假设使用main分支
+                        content: Utils.encodeBase64(content)
                     };
                     
                     // 如果提供了sha，则是更新操作
                     if (sha) {
-                        payload.sha = sha;
+                        body.sha = sha;
                     }
                     
                     const response = await fetch(
@@ -895,7 +940,7 @@
                         {
                             method: sha ? 'PUT' : 'PUT',
                             headers: this.getHeaders(true),
-                            body: JSON.stringify(payload)
+                            body: JSON.stringify(body)
                         }
                     );
                     
@@ -927,8 +972,7 @@
                             headers: this.getHeaders(true),
                             body: JSON.stringify({
                                 message: message || `Delete ${path}`,
-                                sha: sha,
-                                branch: 'main'
+                                sha: sha
                             })
                         }
                     );
@@ -948,276 +992,822 @@
             }
         };
 
-        // 数据处理模块
-        const Data = {
-            // 加载所有文章 - 公开仓库不需要认证
-            async loadArticles() {
-                const result = await GitHubAPI.getFilesList(Config.articlesDir);
-                
-                if (!result.success) {
-                    console.error('加载文章列表失败:', result.error);
-                    return false;
-                }
-                
-                const articles = [];
-                
-                // 过滤出.md文件
-                const mdFiles = result.files.filter(file => 
-                    file.type === 'file' && file.name.endsWith('.md')
-                );
-                
-                // 加载每个文章的内容
-                for (const file of mdFiles) {
-                    const contentResult = await GitHubAPI.getFileContent(file.path);
-                    
-                    if (contentResult.success) {
-                        // 解析文件名中的日期
-                        const dateMatch = file.name.match(/^(\d{4}-\d{2}-\d{2})-/);
-                        const date = dateMatch ? new Date(dateMatch[1]) : new Date(file.last_modified);
-                        
-                        // 尝试从内容中提取第一行作为标题
-                        const lines = contentResult.content.split('\n');
-                        let title = file.name.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '').replace(/-/g, ' ');
-                        title = title.charAt(0).toUpperCase() + title.slice(1);
-                        
-                        if (lines.length > 0 && lines[0].trim() !== '') {
-                            title = lines[0].trim();
-                        }
-                        
-                        articles.push({
-                            id: file.name,
-                            title,
-                            path: file.path,
-                            sha: contentResult.sha,
-                            date,
-                            content: contentResult.content,
-                            htmlContent: marked.parse(contentResult.content)
-                        });
-                    }
-                }
-                
-                // 按日期排序（最新的在前）
-                articles.sort((a, b) => b.date - a.date);
-                
-                State.articles = articles;
-                return true;
-            },
-            
-            // 加载所有分类 - 公开仓库不需要认证
+        // 分类管理模块 - 确保分类ID为数字格式
+        const CategoryManager = {
+            // 加载分类
             async loadCategories() {
-                const result = await GitHubAPI.getFileContent(Config.categoriesFile);
-                
-                if (!result.success) {
-                    // 如果文件不存在，初始化空分类
-                    if (result.error.includes('404')) {
-                        State.categories = [];
-                        return true;
+                try {
+                    const result = await GitHubAPI.getFileContent(Config.categoriesFile);
+                    
+                    if (!result.success) {
+                        // 如果文件不存在，初始化空分类
+                        if (result.error.includes('404')) {
+                            State.categories = [];
+                            return true;
+                        }
+                        console.error('加载分类失败:', result.error);
+                        return false;
                     }
                     
-                    console.error('加载分类失败:', result.error);
-                    return false;
-                }
-                
-                try {
-                    const categories = JSON.parse(result.content);
-                    State.categories = Array.isArray(categories) ? categories : [];
-                    return true;
-                } catch (error) {
-                    console.error('解析分类文件失败:', error);
-                    State.categories = [];
-                    return false;
-                }
-            },
-            
-            // 保存分类 - 需要认证
-            async saveCategories() {
-                const content = JSON.stringify(State.categories, null, 2);
-                const result = await GitHubAPI.createOrUpdateFile(
-                    Config.categoriesFile,
-                    content,
-                    '更新分类列表',
-                    // 先获取当前文件的sha
-                    (await GitHubAPI.getFileContent(Config.categoriesFile, true)).sha
-                );
-                
-                return result.success;
-            },
-            
-            // 发布文章 - 需要认证
-            async publishArticle(title, content) {
-                const fileName = Utils.generateArticleFileName(title);
-                const filePath = `${Config.articlesDir}/${fileName}`;
-                
-                // 确保文章目录存在（通过创建一个空的.gitkeep文件）
-                await GitHubAPI.createOrUpdateFile(
-                    `${Config.articlesDir}/.gitkeep`,
-                    '',
-                    '确保文章目录存在'
-                );
-                
-                // 发布文章
-                const result = await GitHubAPI.createOrUpdateFile(
-                    filePath,
-                    content,
-                    `发布文章: ${title}`
-                );
-                
-                return result.success;
-            },
-            
-            // 删除文章 - 需要认证
-            async deleteArticle(article) {
-                const result = await GitHubAPI.deleteFile(
-                    article.path,
-                    `删除文章: ${article.title}`,
-                    article.sha
-                );
-                
-                return result.success;
-            },
-            
-            // 同步所有数据
-            async syncAllData() {
-                const articlesLoaded = await this.loadArticles();
-                const categoriesLoaded = await this.loadCategories();
-                
-                if (articlesLoaded && categoriesLoaded) {
-                    State.lastSyncTime = new Date();
-                    return true;
-                }
-                
-                return false;
-            }
-        };
-
-        // 视图渲染模块
-        const View = {
-            // 初始化分类容器事件委托
-            initCategoryEvents() {
-                Elements.分类容器.addEventListener('click', (e) => {
-                    const categoryTag = e.target.closest('.分类标签');
-                    if (categoryTag) {
-                        const categoryId = categoryTag.dataset.category;
-                        // 更新选中状态
-                        document.querySelectorAll('.分类标签').forEach(t => t.classList.remove('active'));
-                        categoryTag.classList.add('active');
-                        State.selectedCategory = categoryId;
-                        this.renderArticles();
+                    try {
+                        // 解析分类数据
+                        let categories = JSON.parse(result.content);
+                        
+                        // 验证并修复分类格式，确保ID为数字
+                        if (Array.isArray(categories)) {
+                            State.categories = categories.map(cat => {
+                                // 确保ID是数字
+                                const id = typeof cat.id === 'number' ? cat.id : parseInt(cat.id, 10) || Utils.getNextCategoryId();
+                                return {
+                                    id,
+                                    name: cat.name || `未命名分类${id}`
+                                };
+                            });
+                            
+                            // 确保ID唯一且连续
+                            this.ensureUniqueIds();
+                            return true;
+                        } else {
+                            console.error('分类数据格式错误，应为数组');
+                            State.categories = [];
+                            return false;
+                        }
+                    } catch (parseError) {
+                        console.error('解析分类数据失败:', parseError);
+                        State.categories = [];
+                        return false;
                     }
+                } catch (error) {
+                    console.error('加载分类时发生错误:', error);
+                    return false;
+                }
+            },
+            
+            // 确保分类ID唯一且为数字
+            ensureUniqueIds() {
+                const ids = new Set();
+                const uniqueCategories = [];
+                
+                State.categories.forEach(cat => {
+                    let id = cat.id;
+                    // 确保ID是数字
+                    if (typeof id !== 'number') {
+                        id = parseInt(id, 10) || Utils.getNextCategoryId();
+                    }
+                    
+                    // 确保ID唯一
+                    while (ids.has(id)) {
+                        id++;
+                    }
+                    
+                    ids.add(id);
+                    uniqueCategories.push({ ...cat, id });
                 });
+                
+                State.categories = uniqueCategories;
+            },
+            
+            // 保存分类
+            async saveCategories() {
+                try {
+                    // 先确保ID正确
+                    this.ensureUniqueIds();
+                    
+                    const content = JSON.stringify(State.categories, null, 2);
+                    // 检查是否已存在分类文件
+                    const existingFile = await GitHubAPI.getFileContent(Config.categoriesFile);
+                    
+                    let result;
+                    if (existingFile.success) {
+                        // 更新现有文件
+                        result = await GitHubAPI.createOrUpdateFile(
+                            Config.categoriesFile,
+                            content,
+                            '更新分类列表',
+                            existingFile.sha
+                        );
+                    } else {
+                        // 创建新文件
+                        result = await GitHubAPI.createOrUpdateFile(
+                            Config.categoriesFile,
+                            content,
+                            '创建分类列表'
+                        );
+                    }
+                    
+                    if (result.success) {
+                        Utils.showStatusMessage('分类保存成功');
+                        return true;
+                    } else {
+                        console.error('保存分类失败:', result.error);
+                        Utils.showStatusMessage('保存分类失败: ' + result.error, true);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('保存分类时发生错误:', error);
+                    Utils.showStatusMessage('保存分类时发生错误: ' + error.message, true);
+                    return false;
+                }
+            },
+            
+            // 添加新分类
+            async addCategory(name) {
+                if (!name || name.trim() === '') {
+                    Utils.showStatusMessage('分类名称不能为空', true);
+                    return false;
+                }
+                
+                // 检查分类名称是否已存在
+                if (State.categories.some(cat => cat.name.trim().toLowerCase() === name.trim().toLowerCase())) {
+                    Utils.showStatusMessage('该分类名称已存在', true);
+                    return false;
+                }
+                
+                // 获取下一个可用的ID（数字格式）
+                const newId = Utils.getNextCategoryId();
+                
+                // 添加新分类
+                State.categories.push({
+                    id: newId,
+                    name: name.trim()
+                });
+                
+                // 保存分类
+                const success = await this.saveCategories();
+                if (success) {
+                    // 更新UI
+                    this.renderCategoryTags();
+                    this.renderCategorySelector();
+                    this.renderCategoriesList();
+                }
+                
+                return success;
+            },
+            
+            // 更新分类
+            async updateCategory(id, newName) {
+                if (!newName || newName.trim() === '') {
+                    Utils.showStatusMessage('分类名称不能为空', true);
+                    return false;
+                }
+                
+                const categoryIndex = State.categories.findIndex(cat => cat.id === id);
+                if (categoryIndex === -1) {
+                    Utils.showStatusMessage('分类不存在', true);
+                    return false;
+                }
+                
+                // 检查新名称是否已存在（排除当前分类）
+                if (State.categories.some((cat, index) => 
+                    index !== categoryIndex && 
+                    cat.name.trim().toLowerCase() === newName.trim().toLowerCase()
+                )) {
+                    Utils.showStatusMessage('该分类名称已存在', true);
+                    return false;
+                }
+                
+                // 更新分类名称
+                State.categories[categoryIndex].name = newName.trim();
+                
+                // 保存分类
+                const success = await this.saveCategories();
+                if (success) {
+                    // 更新UI
+                    this.renderCategoryTags();
+                    this.renderCategorySelector();
+                    this.renderCategoriesList();
+                    ArticleManager.renderArticlesTable();
+                }
+                
+                return success;
+            },
+            
+            // 删除分类
+            async deleteCategory(id) {
+                // 检查是否有文章使用该分类
+                const articlesWithCategory = State.articles.filter(article => 
+                    article.categories && article.categories.includes(id)
+                );
+                
+                if (articlesWithCategory.length > 0) {
+                    if (!confirm(`该分类下有 ${articlesWithCategory.length} 篇文章，删除后这些文章将不再属于该分类。确定要删除吗？`)) {
+                        return false;
+                    }
+                }
+                
+                // 从分类列表中移除
+                State.categories = State.categories.filter(cat => cat.id !== id);
+                
+                // 保存分类
+                const success = await this.saveCategories();
+                if (success) {
+                    // 更新UI
+                    this.renderCategoryTags();
+                    this.renderCategorySelector();
+                    this.renderCategoriesList();
+                    
+                    // 如果当前选中的是被删除的分类，切换到"全部"
+                    if (State.selectedCategory === id.toString()) {
+                        State.selectedCategory = 'all';
+                        document.querySelector('.分类标签.active').classList.remove('active');
+                        document.querySelector('.分类标签[data-category="all"]').classList.add('active');
+                    }
+                }
+                
+                return success;
             },
             
             // 渲染分类标签
-            renderCategories() {
+            renderCategoryTags() {
                 const fragment = Utils.createFragment();
                 
-                // 先清除现有分类（保留"全部"）
-                while (Elements.分类容器.children.length > 1) {
-                    Elements.分类容器.removeChild(Elements.分类容器.lastChild);
-                }
+                // 添加"全部"标签（已存在于HTML中，这里不需要重复添加）
                 
-                // 更新"全部"标签的激活状态
-                const allTag = Elements.分类容器.querySelector('.分类标签[data-category="all"]');
-                if (allTag) {
-                    allTag.classList.toggle('active', State.selectedCategory === 'all');
-                }
-                
-                // 添加分类标签
+                // 添加各个分类标签
                 State.categories.forEach(category => {
                     const tag = document.createElement('span');
-                    tag.className = `分类标签 ${State.selectedCategory === category.id ? 'active' : ''}`;
+                    tag.className = `分类标签 ${State.selectedCategory === category.id.toString() ? 'active' : ''}`;
                     tag.dataset.category = category.id;
                     tag.textContent = category.name;
+                    
+                    // 添加点击事件
+                    tag.addEventListener('click', () => {
+                        // 更新选中状态
+                        document.querySelectorAll('.分类标签').forEach(t => t.classList.remove('active'));
+                        tag.classList.add('active');
+                        State.selectedCategory = category.id.toString();
+                        ArticleManager.filterArticles();
+                    });
+                    
                     fragment.appendChild(tag);
                 });
                 
+                // 清除现有分类标签（保留"全部"）
+                const existingTags = Elements.分类容器.querySelectorAll('.分类标签:not([data-category="all"])');
+                existingTags.forEach(tag => tag.remove());
+                
+                // 添加新标签
                 Elements.分类容器.appendChild(fragment);
+            },
+            
+            // 渲染分类选择器（用于撰写文章）
+            renderCategorySelector() {
+                const fragment = Utils.createFragment();
+                
+                State.categories.forEach(category => {
+                    const container = document.createElement('div');
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `category-${category.id}`;
+                    checkbox.value = category.id;
+                    checkbox.className = 'category-checkbox';
+                    
+                    const label = document.createElement('label');
+                    label.htmlFor = `category-${category.id}`;
+                    label.textContent = category.name;
+                    
+                    container.appendChild(checkbox);
+                    container.appendChild(label);
+                    fragment.appendChild(container);
+                });
+                
+                Elements.categorySelector.innerHTML = '';
+                Elements.categorySelector.appendChild(fragment);
+            },
+            
+            // 渲染分类列表（用于管理分类）
+            renderCategoriesList() {
+                const fragment = Utils.createFragment();
+                
+                if (State.categories.length === 0) {
+                    const emptyMsg = document.createElement('p');
+                    emptyMsg.className = 'text-gray-500 italic';
+                    emptyMsg.textContent = '暂无分类，请添加新分类';
+                    fragment.appendChild(emptyMsg);
+                } else {
+                    State.categories.forEach(category => {
+                        const item = document.createElement('div');
+                        item.className = 'flex items-center justify-between p-3 border rounded bg-white';
+                        
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = category.name;
+                        nameSpan.className = 'flex-1';
+                        
+                        const actions = document.createElement('div');
+                        
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'text-blue-500 hover:text-blue-700 mr-3';
+                        editBtn.innerHTML = '<i class="fa fa-pencil" aria-hidden="true"></i>';
+                        editBtn.title = '编辑';
+                        editBtn.addEventListener('click', () => this.handleEditCategory(category.id));
+                        
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'text-red-500 hover:text-red-700';
+                        deleteBtn.innerHTML = '<i class="fa fa-trash" aria-hidden="true"></i>';
+                        deleteBtn.title = '删除';
+                        deleteBtn.addEventListener('click', () => this.deleteCategory(category.id));
+                        
+                        actions.appendChild(editBtn);
+                        actions.appendChild(deleteBtn);
+                        
+                        item.appendChild(nameSpan);
+                        item.appendChild(actions);
+                        
+                        fragment.appendChild(item);
+                    });
+                }
+                
+                Elements.categoriesList.innerHTML = '';
+                Elements.categoriesList.appendChild(fragment);
+            },
+            
+            // 处理编辑分类
+            handleEditCategory(id) {
+                const category = State.categories.find(cat => cat.id === id);
+                if (!category) return;
+                
+                const newName = prompt('请输入新的分类名称:', category.name);
+                if (newName !== null && newName.trim() !== '' && newName !== category.name) {
+                    this.updateCategory(id, newName);
+                }
+            }
+        };
+
+        // 文章管理模块
+        const ArticleManager = {
+            // 加载文章列表
+            async loadArticles() {
+                try {
+                    Elements.文章加载指示器.classList.remove('hidden');
+                    Elements.文章列表.classList.add('hidden');
+                    
+                    // 获取文章目录下的所有文件
+                    const result = await GitHubAPI.getFilesList(Config.articlesDir);
+                    
+                    if (!result.success) {
+                        console.error('获取文章列表失败:', result.error);
+                        Utils.showStatusMessage('加载文章失败: ' + result.error, true);
+                        Elements.文章加载指示器.classList.add('hidden');
+                        return false;
+                    }
+                    
+                    // 过滤出Markdown文件
+                    const mdFiles = result.files.filter(file => 
+                        file.type === 'file' && file.name.endsWith('.md')
+                    );
+                    
+                    // 加载每篇文章的内容
+                    const articles = [];
+                    for (const file of mdFiles) {
+                        const contentResult = await GitHubAPI.getFileContent(file.path);
+                        
+                        if (contentResult.success) {
+                            // 解析文章元数据
+                            const article = this.parseArticleContent(contentResult.content, file);
+                            articles.push(article);
+                        } else {
+                            console.error(`加载文章 ${file.name} 失败:`, contentResult.error);
+                        }
+                    }
+                    
+                    // 按日期排序（最新的在前）
+                    articles.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    
+                    State.articles = articles;
+                    
+                    // 渲染文章列表
+                    this.renderArticles();
+                    // 渲染文章管理表格
+                    this.renderArticlesTable();
+                    
+                    Elements.文章加载指示器.classList.add('hidden');
+                    Elements.文章列表.classList.remove('hidden');
+                    
+                    return true;
+                } catch (error) {
+                    console.error('加载文章时发生错误:', error);
+                    Utils.showStatusMessage('加载文章时发生错误: ' + error.message, true);
+                    Elements.文章加载指示器.classList.add('hidden');
+                    return false;
+                }
+            },
+            
+            // 解析文章内容，提取分类和标题
+            parseArticleContent(content, file) {
+                // 从文件名提取日期（假设格式为 YYYY-MM-DD-标题.md）
+                const dateMatch = file.name.match(/^(\d{4}-\d{2}-\d{2})-/);
+                const date = dateMatch ? dateMatch[1] : new Date(file.updated_at).toISOString().split('T')[0];
+                
+                // 提取第一行的分类ID
+                const lines = content.split('\n');
+                let categories = [];
+                let contentWithoutCategories = content;
+                
+                if (lines.length > 0 && lines[0].trim() !== '') {
+                    try {
+                        // 第一行应为分类ID，用逗号分隔
+                        const categoryIds = lines[0].split(',').map(id => parseInt(id.trim(), 10)).filter(Boolean);
+                        categories = categoryIds;
+                        // 移除第一行
+                        contentWithoutCategories = lines.slice(1).join('\n');
+                    } catch (e) {
+                        console.warn('解析分类ID失败，使用空分类', e);
+                    }
+                }
+                
+                // 从内容中提取标题（寻找第一个#标题）
+                let title = file.name.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '').replace(/-/g, ' ');
+                const titleMatch = contentWithoutCategories.match(/#{1,2}\s+(.*?)\n/);
+                if (titleMatch && titleMatch[1]) {
+                    title = titleMatch[1];
+                }
+                
+                // 生成预览HTML
+                const previewHtml = marked.parse(contentWithoutCategories);
+                
+                return {
+                    id: file.sha,
+                    title,
+                    date,
+                    fileName: file.name,
+                    filePath: file.path,
+                    sha: file.sha,
+                    categories,
+                    content: contentWithoutCategories,
+                    previewHtml,
+                    summary: Utils.getArticleSummary(previewHtml),
+                    updatedAt: file.updated_at
+                };
             },
             
             // 渲染文章列表
             renderArticles() {
-                // 隐藏加载指示器，显示文章列表
-                Elements.文章加载指示器.classList.add('hidden');
-                Elements.文章列表.classList.remove('hidden');
-                
-                Elements.文章列表.innerHTML = '';
                 const fragment = Utils.createFragment();
-                
-                // 过滤文章
-                let filteredArticles = State.articles;
-                if (State.selectedCategory !== 'all') {
-                    filteredArticles = State.articles.filter(article => {
-                        // 检查内容中是否包含分类ID
-                        return article.content.includes(State.selectedCategory);
-                    });
-                }
+                const filteredArticles = this.getFilteredArticles();
                 
                 if (filteredArticles.length === 0) {
-                    const emptyMessage = document.createElement('div');
-                    emptyMessage.className = 'col-span-full text-center py-12 text-gray-500';
-                    emptyMessage.innerHTML = '<i class="fa fa-book-open text-4xl mb-3"></i><p>没有找到相关文章</p>';
-                    Elements.文章列表.appendChild(emptyMessage);
-                    return;
+                    const emptyMsg = document.createElement('div');
+                    emptyMsg.className = 'col-span-full text-center py-12 text-gray-500';
+                    emptyMsg.innerHTML = '<i class="fa fa-file-text-o text-4xl mb-3" aria-hidden="true"></i><p>暂无符合条件的文章</p>';
+                    fragment.appendChild(emptyMsg);
+                } else {
+                    filteredArticles.forEach(article => {
+                        const card = document.createElement('div');
+                        card.className = '文章-card bg-white shadow';
+                        
+                        // 文章日期
+                        const dateEl = document.createElement('div');
+                        dateEl.className = 'bg-primary text-white p-2 text-sm';
+                        dateEl.textContent = article.date;
+                        
+                        // 文章内容
+                        const contentEl = document.createElement('div');
+                        contentEl.className = 'p-5';
+                        
+                        // 文章标题
+                        const titleEl = document.createElement('h3');
+                        titleEl.className = 'text-xl font-bold mb-2 hover:text-primary transition-all-300';
+                        titleEl.textContent = article.title;
+                        
+                        // 文章分类
+                        const categoriesEl = document.createElement('div');
+                        categoriesEl.className = 'mb-3 flex flex-wrap gap-1';
+                        
+                        if (article.categories && article.categories.length > 0) {
+                            article.categories.forEach(catId => {
+                                const catName = Utils.getCategoryNameById(catId);
+                                if (catName) {
+                                    const catEl = document.createElement('span');
+                                    catEl.className = 'px-2 py-1 bg-secondary/30 text-dark text-xs rounded';
+                                    catEl.textContent = catName;
+                                    categoriesEl.appendChild(catEl);
+                                }
+                            });
+                        }
+                        
+                        // 文章摘要
+                        const summaryEl = document.createElement('p');
+                        summaryEl.className = 'text-gray-600 mb-4';
+                        summaryEl.textContent = article.summary;
+                        
+                        // 阅读更多按钮
+                        const readMoreBtn = document.createElement('button');
+                        readMoreBtn.className = 'text-primary hover:text-accent font-medium flex items-center';
+                        readMoreBtn.innerHTML = '阅读更多 <i class="fa fa-arrow-right ml-1" aria-hidden="true"></i>';
+                        readMoreBtn.addEventListener('click', () => this.showArticleDetail(article));
+                        
+                        contentEl.appendChild(titleEl);
+                        contentEl.appendChild(categoriesEl);
+                        contentEl.appendChild(summaryEl);
+                        contentEl.appendChild(readMoreBtn);
+                        
+                        card.appendChild(dateEl);
+                        card.appendChild(contentEl);
+                        
+                        fragment.appendChild(card);
+                    });
                 }
                 
-                // 创建文章卡片
-                filteredArticles.forEach(article => {
-                    const card = document.createElement('div');
-                    card.className = '文章-card bg-white shadow-md';
-                    
-                    // 获取摘要
-                    const summary = Utils.getArticleSummary(article.htmlContent);
-                    
-                    // 查找文章关联的分类
-                    const categories = [];
-                    State.categories.forEach(category => {
-                        if (article.content.includes(category.id)) {
-                            categories.push(category);
-                        }
-                    });
-                    
-                    card.innerHTML = `
-                        <div class="p-6">
-                            <div class="flex flex-wrap gap-2 mb-3">
-                                ${categories.map(cat => `
-                                    <span class="分类标签 text-xs px-2 py-1" data-category="${cat.id}">${cat.name}</span>
-                                `).join('')}
-                            </div>
-                            <h3 class="text-xl font-bold mb-2 hover:text-primary transition-all-300">${article.title}</h3>
-                            <p class="text-gray-600 mb-4 line-clamp-3">${summary}</p>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-500">${Utils.formatDate(article.date)}</span>
-                                <button class="text-primary hover:text-accent transition-all-300 查看文章按钮" data-id="${article.id}">
-                                    阅读全文 <i class="fa fa-arrow-right ml-1"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    
-                    // 添加查看文章事件
-                    card.querySelector('.查看文章按钮').addEventListener('click', () => {
-                        this.showArticleDetail(article);
-                    });
-                    
-                    fragment.appendChild(card);
-                });
-                
+                Elements.文章列表.innerHTML = '';
                 Elements.文章列表.appendChild(fragment);
+            },
+            
+            // 按分类过滤文章
+            filterArticles() {
+                this.renderArticles();
+            },
+            
+            // 获取过滤后的文章
+            getFilteredArticles() {
+                if (State.selectedCategory === 'all') {
+                    return State.articles;
+                }
+                
+                const categoryId = parseInt(State.selectedCategory, 10);
+                return State.articles.filter(article => 
+                    article.categories && article.categories.includes(categoryId)
+                );
             },
             
             // 显示文章详情
             showArticleDetail(article) {
-                Elements.文章详情内容.innerHTML = `
-                    <div class="p-4">
-                        <h2 class="text-3xl font-bold mb-4">${article.title}</h2>
-                        <div class="text-gray-500 mb-6">
-                            <span>${Utils.formatDate(article.date)}</span>
-                        </div>
-                        <div class="prose max-w-none">${article.htmlContent}</div>
-                    </div>
-                `;
+                if (!article) return;
                 
-                this.showModal(Elements.文章详情模态框);
+                const detailContent = document.createElement('div');
+                detailContent.className = 'p-4';
+                
+                // 文章标题
+                const titleEl = document.createElement('h2');
+                titleEl.className = 'text-3xl font-bold mb-6 text-center';
+                titleEl.textContent = article.title;
+                
+                // 文章元数据（日期和分类）
+                const metaEl = document.createElement('div');
+                metaEl.className = 'flex flex-wrap justify-center gap-x-6 gap-y-2 text-gray-600 mb-8 pb-4 border-b';
+                
+                const dateEl = document.createElement('div');
+                dateEl.className = 'flex items-center';
+                dateEl.innerHTML = '<i class="fa fa-calendar mr-2" aria-hidden="true"></i> ' + article.date;
+                
+                const categoriesEl = document.createElement('div');
+                categoriesEl.className = 'flex items-center flex-wrap gap-2';
+                categoriesEl.innerHTML = '<i class="fa fa-tags mr-2" aria-hidden="true"></i>';
+                
+                if (article.categories && article.categories.length > 0) {
+                    article.categories.forEach(catId => {
+                        const catName = Utils.getCategoryNameById(catId);
+                        if (catName) {
+                            const catEl = document.createElement('span');
+                            catEl.className = 'px-2 py-1 bg-secondary/30 text-dark text-sm rounded';
+                            catEl.textContent = catName;
+                            categoriesEl.appendChild(catEl);
+                        }
+                    });
+                } else {
+                    categoriesEl.innerHTML += ' 无分类';
+                }
+                
+                metaEl.appendChild(dateEl);
+                metaEl.appendChild(categoriesEl);
+                
+                // 文章内容
+                const contentEl = document.createElement('div');
+                contentEl.className = 'prose prose-lg max-w-none mx-auto';
+                contentEl.innerHTML = article.previewHtml;
+                
+                detailContent.appendChild(titleEl);
+                detailContent.appendChild(metaEl);
+                detailContent.appendChild(contentEl);
+                
+                Elements.文章详情内容.innerHTML = '';
+                Elements.文章详情内容.appendChild(detailContent);
+                
+                // 显示模态框
+                Elements.文章详情模态框.style.display = 'block';
+            },
+            
+            // 发布文章
+            async publishArticle() {
+                const title = Elements.articleTitleInput.value.trim();
+                if (!title) {
+                    Utils.showStatusMessage('文章标题不能为空', true);
+                    return false;
+                }
+                
+                // 获取选中的分类
+                const selectedCategories = [];
+                document.querySelectorAll('.category-checkbox:checked').forEach(checkbox => {
+                    selectedCategories.push(parseInt(checkbox.value, 10));
+                });
+                
+                let content = Elements.articleEditor.value.trim();
+                
+                // 在内容开头添加分类ID
+                if (selectedCategories.length > 0) {
+                    content = selectedCategories.join(',') + '\n' + content;
+                } else {
+                    // 如果没有选择分类，确保第一行为空行
+                    content = '\n' + content;
+                }
+                
+                // 生成文件名
+                const fileName = Utils.generateArticleFileName(title);
+                const filePath = `${Config.articlesDir}/${fileName}`;
+                
+                try {
+                    // 检查文件是否已存在
+                    const existingFile = await GitHubAPI.getFileContent(filePath);
+                    
+                    let result;
+                    if (existingFile.success) {
+                        // 文件已存在，询问是否覆盖
+                        if (!confirm('同名文章已存在，是否覆盖？')) {
+                            return false;
+                        }
+                        // 更新文件
+                        result = await GitHubAPI.createOrUpdateFile(
+                            filePath,
+                            content,
+                            `更新文章: ${title}`,
+                            existingFile.sha
+                        );
+                    } else {
+                        // 创建新文件
+                        result = await GitHubAPI.createOrUpdateFile(
+                            filePath,
+                            content,
+                            `发布新文章: ${title}`
+                        );
+                    }
+                    
+                    if (result.success) {
+                        Utils.showStatusMessage('文章发布成功');
+                        // 清空表单
+                        Elements.articleTitleInput.value = '';
+                        Elements.articleEditor.value = '';
+                        document.querySelectorAll('.category-checkbox:checked').forEach(checkbox => {
+                            checkbox.checked = false;
+                        });
+                        Elements.previewContainer.innerHTML = '<p class="text-gray-500 italic">预览将显示在这里...</p>';
+                        
+                        // 重新加载文章列表
+                        this.loadArticles();
+                        return true;
+                    } else {
+                        console.error('发布文章失败:', result.error);
+                        Utils.showStatusMessage('发布文章失败: ' + result.error, true);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('发布文章时发生错误:', error);
+                    Utils.showStatusMessage('发布文章时发生错误: ' + error.message, true);
+                    return false;
+                }
+            },
+            
+            // 渲染文章管理表格
+            renderArticlesTable() {
+                const tbody = Elements.articlesTable.querySelector('tbody');
+                tbody.innerHTML = '';
+                
+                if (State.articles.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="4" class="py-4 px-4 text-center text-gray-500">暂无文章</td>';
+                    tbody.appendChild(row);
+                    return;
+                }
+                
+                State.articles.forEach(article => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50';
+                    
+                    // 标题
+                    const titleCell = document.createElement('td');
+                    titleCell.className = 'py-3 px-4';
+                    titleCell.textContent = article.title;
+                    
+                    // 日期
+                    const dateCell = document.createElement('td');
+                    dateCell.className = 'py-3 px-4';
+                    dateCell.textContent = article.date;
+                    
+                    // 分类
+                    const categoriesCell = document.createElement('td');
+                    categoriesCell.className = 'py-3 px-4';
+                    
+                    const categoryNames = Utils.getCategoryNamesByIds(article.categories);
+                    if (categoryNames.length > 0) {
+                        categoriesCell.textContent = categoryNames.join(', ');
+                    } else {
+                        categoriesCell.innerHTML = '<span class="text-gray-400 italic">无</span>';
+                    }
+                    
+                    // 操作
+                    const actionsCell = document.createElement('td');
+                    actionsCell.className = 'py-3 px-4 text-center';
+                    
+                    const viewBtn = document.createElement('button');
+                    viewBtn.className = 'text-blue-500 hover:text-blue-700 mr-3';
+                    viewBtn.innerHTML = '<i class="fa fa-eye" aria-hidden="true"></i>';
+                    viewBtn.title = '查看';
+                    viewBtn.addEventListener('click', () => this.showArticleDetail(article));
+                    
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'text-green-500 hover:text-green-700 mr-3';
+                    editBtn.innerHTML = '<i class="fa fa-pencil" aria-hidden="true"></i>';
+                    editBtn.title = '编辑';
+                    editBtn.addEventListener('click', () => this.editArticle(article));
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'text-red-500 hover:text-red-700';
+                    deleteBtn.innerHTML = '<i class="fa fa-trash" aria-hidden="true"></i>';
+                    deleteBtn.title = '删除';
+                    deleteBtn.addEventListener('click', () => this.deleteArticle(article));
+                    
+                    actionsCell.appendChild(viewBtn);
+                    actionsCell.appendChild(editBtn);
+                    actionsCell.appendChild(deleteBtn);
+                    
+                    row.appendChild(titleCell);
+                    row.appendChild(dateCell);
+                    row.appendChild(categoriesCell);
+                    row.appendChild(actionsCell);
+                    
+                    tbody.appendChild(row);
+                });
+            },
+            
+            // 编辑文章
+            editArticle(article) {
+                // 切换到撰写文章标签
+                Elements.adminMenuItems.forEach(item => item.classList.remove('active'));
+                Elements.adminSections.forEach(section => section.classList.remove('active'));
+                document.querySelector('.admin-menu-item[data-section="write-article"]').classList.add('active');
+                document.getElementById('write-article').classList.add('active');
+                
+                // 填充表单
+                Elements.articleTitleInput.value = article.title;
+                
+                // 移除内容中的分类ID行，只保留正文
+                const contentWithoutCategories = article.content || '';
+                Elements.articleEditor.value = contentWithoutCategories;
+                
+                // 更新预览
+                this.updatePreview();
+                
+                // 选中分类
+                document.querySelectorAll('.category-checkbox').forEach(checkbox => {
+                    checkbox.checked = article.categories && article.categories.includes(parseInt(checkbox.value, 10));
+                });
+            },
+            
+            // 删除文章
+            async deleteArticle(article) {
+                if (!confirm(`确定要删除文章《${article.title}》吗？此操作不可恢复。`)) {
+                    return false;
+                }
+                
+                try {
+                    const result = await GitHubAPI.deleteFile(
+                        article.filePath,
+                        `删除文章: ${article.title}`,
+                        article.sha
+                    );
+                    
+                    if (result.success) {
+                        Utils.showStatusMessage('文章删除成功');
+                        // 重新加载文章列表
+                        this.loadArticles();
+                        return true;
+                    } else {
+                        console.error('删除文章失败:', result.error);
+                        Utils.showStatusMessage('删除文章失败: ' + result.error, true);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('删除文章时发生错误:', error);
+                    Utils.showStatusMessage('删除文章时发生错误: ' + error.message, true);
+                    return false;
+                }
+            },
+            
+            // 更新预览
+            updatePreview() {
+                const content = Elements.articleEditor.value;
+                const html = marked.parse(content);
+                Elements.previewContainer.innerHTML = html;
+            }
+        };
+
+        // 日历模块
+        const Calendar = {
+            // 初始化日历
+            init() {
+                this.renderCalendar();
+                this.updateCurrentTime();
+                setInterval(() => this.updateCurrentTime(), 60000); // 每分钟更新一次时间
+                this.showRandomPhilosophicalQuote();
             },
             
             // 渲染日历
@@ -1225,9 +1815,14 @@
                 const year = State.currentDate.getFullYear();
                 const month = State.currentDate.getMonth();
                 
-                // 更新标题
+                // 更新当前年月显示
                 Elements.当前年月显示.textContent = `${year}年${month + 1}月`;
-                Elements.当前时间显示.textContent = `今天是 ${Utils.formatDate(new Date())}`;
+                
+                // 获取当月第一天是星期几
+                const firstDay = new Date(year, month, 1).getDay();
+                
+                // 获取当月的天数
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
                 
                 // 清空日历网格
                 Elements.日历网格.innerHTML = '';
@@ -1241,17 +1836,11 @@
                     Elements.日历网格.appendChild(dayEl);
                 });
                 
-                // 获取当月第一天是星期几
-                const firstDay = new Date(year, month, 1).getDay();
-                
-                // 获取当月的天数
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                
                 // 添加空白单元格
                 for (let i = 0; i < firstDay; i++) {
-                    const emptyDay = document.createElement('div');
-                    emptyDay.className = 'py-3';
-                    Elements.日历网格.appendChild(emptyDay);
+                    const emptyEl = document.createElement('div');
+                    emptyEl.className = 'py-2';
+                    Elements.日历网格.appendChild(emptyEl);
                 }
                 
                 // 添加日期单元格
@@ -1260,33 +1849,52 @@
                 
                 for (let day = 1; day <= daysInMonth; day++) {
                     const dayEl = document.createElement('div');
-                    dayEl.className = `py-3 rounded-full cursor-pointer hover:bg-gray-100 transition-all-300 ${
-                        isCurrentMonth && day === today.getDate() ? '今日日期标记 font-bold' : ''
-                    }`;
+                    dayEl.className = 'py-2 rounded border hover:bg-secondary/20 transition-all-300 cursor-pointer';
+                    
+                    // 如果是今天，添加特殊样式
+                    if (isCurrentMonth && today.getDate() === day) {
+                        dayEl.classList.add('今日日期标记', 'font-bold');
+                    }
+                    
                     dayEl.textContent = day;
                     
-                    // 检查该日期是否有文章
-                    const hasArticles = State.articles.some(article => {
-                        const articleDate = new Date(article.date);
-                        return articleDate.getFullYear() === year && 
-                               articleDate.getMonth() === month && 
-                               articleDate.getDate() === day;
+                    // 添加点击事件
+                    dayEl.addEventListener('click', () => {
+                        const selectedDate = new Date(year, month, day);
+                        this.onDateSelected(selectedDate);
                     });
-                    
-                    if (hasArticles) {
-                        dayEl.classList.add('text-primary', 'font-medium');
-                        dayEl.title = '有文章发布';
-                    }
                     
                     Elements.日历网格.appendChild(dayEl);
                 }
-                
-                // 随机显示一句哲言
-                this.renderRandomPhilosophicalQuote();
             },
             
-            // 渲染随机哲言
-            renderRandomPhilosophicalQuote() {
+            // 上一个月
+            prevMonth() {
+                State.currentDate.setMonth(State.currentDate.getMonth() - 1);
+                this.renderCalendar();
+            },
+            
+            // 下一个月
+            nextMonth() {
+                State.currentDate.setMonth(State.currentDate.getMonth() + 1);
+                this.renderCalendar();
+            },
+            
+            // 更新当前时间显示
+            updateCurrentTime() {
+                const now = new Date();
+                Elements.当前时间显示.textContent = now.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'long',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
+            
+            // 显示随机哲言
+            showRandomPhilosophicalQuote() {
                 const randomIndex = Math.floor(Math.random() * State.philosophicalQuotes.length);
                 const quote = State.philosophicalQuotes[randomIndex];
                 
@@ -1296,636 +1904,431 @@
                 `;
             },
             
-            // 渲染管理界面中的分类选择器
-            renderCategorySelector() {
-                Elements.categorySelector.innerHTML = '';
-                const fragment = Utils.createFragment();
+            // 日期选中事件
+            onDateSelected(date) {
+                const formattedDate = Utils.formatDate(date);
+                // 查找该日期的文章
+                const articlesOnDate = State.articles.filter(article => article.date === formattedDate);
                 
-                State.categories.forEach(category => {
-                    const checkbox = document.createElement('label');
-                    checkbox.className = 'inline-flex items-center p-2 border rounded cursor-pointer hover:border-primary transition-all-300';
-                    checkbox.innerHTML = `
-                        <input type="checkbox" class="mr-2 category-checkbox" data-id="${category.id}">
-                        ${category.name}
-                    `;
-                    fragment.appendChild(checkbox);
-                });
-                
-                Elements.categorySelector.appendChild(fragment);
-            },
-            
-            // 渲染文章管理表格
-            renderArticlesTable() {
-                const tbody = Elements.articlesTable.querySelector('tbody');
-                tbody.innerHTML = '';
-                
-                if (State.articles.length === 0) {
-                    const row = document.createElement('tr');
-                    row.innerHTML = '<td colspan="4" class="py-4 text-center text-gray-500">暂无文章</td>';
-                    tbody.appendChild(row);
-                    return;
-                }
-                
-                State.articles.forEach(article => {
-                    // 查找文章关联的分类
-                    const categories = [];
-                    State.categories.forEach(category => {
-                        if (article.content.includes(category.id)) {
-                            categories.push(category.name);
-                        }
-                    });
-                    
-                    const row = document.createElement('tr');
-                    row.className = 'border-b hover:bg-gray-50 transition-all-300';
-                    row.innerHTML = `
-                        <td class="py-3 px-4">${article.title}</td>
-                        <td class="py-3 px-4">${Utils.formatDate(article.date)}</td>
-                        <td class="py-3 px-4">${categories.length > 0 ? categories.join(', ') : '无分类'}</td>
-                        <td class="py-3 px-4 text-center">
-                            <button class="text-primary hover:text-accent mr-3 编辑文章按钮" data-id="${article.id}">
-                                <i class="fa fa-pencil" aria-hidden="true"></i>
-                            </button>
-                            <button class="text-red-500 hover:text-red-700 删除文章按钮" data-id="${article.id}">
-                                <i class="fa fa-trash" aria-hidden="true"></i>
-                            </button>
-                        </td>
-                    `;
-                    
-                    // 编辑按钮事件
-                    row.querySelector('.编辑文章按钮').addEventListener('click', () => {
-                        this.loadArticleForEditing(article);
-                        // 切换到撰写文章标签
-                        Elements.adminMenuItems.forEach(item => item.classList.remove('active'));
-                        Elements.adminSections.forEach(section => section.classList.remove('active'));
-                        document.querySelector('[data-section="write-article"]').classList.add('active');
-                        document.getElementById('write-article').classList.add('active');
-                    });
-                    
-                    // 删除按钮事件
-                    row.querySelector('.删除文章按钮').addEventListener('click', async () => {
-                        if (confirm(`确定要删除文章《${article.title}》吗？`)) {
-                            const success = await Data.deleteArticle(article);
-                            if (success) {
-                                Utils.showStatusMessage('文章已成功删除');
-                                await Data.syncAllData();
-                                this.renderArticlesTable();
-                                this.renderArticles();
-                            } else {
-                                Utils.showStatusMessage('删除文章失败', true);
-                            }
-                        }
-                    });
-                    
-                    tbody.appendChild(row);
-                });
-            },
-            
-            // 加载文章用于编辑
-            loadArticleForEditing(article) {
-                Elements.articleTitleInput.value = article.title;
-                Elements.articleEditor.value = article.content;
-                this.updatePreview();
-                
-                // 选中对应的分类
-                document.querySelectorAll('.category-checkbox').forEach(checkbox => {
-                    checkbox.checked = article.content.includes(checkbox.dataset.id);
-                });
-            },
-            
-            // 渲染分类管理列表
-            renderCategoriesList() {
-                Elements.categoriesList.innerHTML = '';
-                
-                if (State.categories.length === 0) {
-                    Elements.categoriesList.innerHTML = '<p class="text-gray-500 italic">暂无分类，请添加分类</p>';
-                    return;
-                }
-                
-                State.categories.forEach(category => {
-                    const item = document.createElement('div');
-                    item.className = 'flex justify-between items-center p-3 bg-white border rounded';
-                    item.innerHTML = `
-                        <div>
-                            <div class="font-medium">${category.name}</div>
-                            <div class="text-sm text-gray-500">ID: ${category.id}</div>
-                        </div>
-                        <button class="text-red-500 hover:text-red-700 删除分类按钮" data-id="${category.id}">
-                            <i class="fa fa-trash" aria-hidden="true"></i>
-                        </button>
-                    `;
-                    
-                    // 删除分类事件
-                    item.querySelector('.删除分类按钮').addEventListener('click', async () => {
-                        if (confirm(`确定要删除分类"${category.name}"吗？`)) {
-                            State.categories = State.categories.filter(c => c.id !== category.id);
-                            const success = await Data.saveCategories();
-                            
-                            if (success) {
-                                Utils.showStatusMessage('分类已成功删除');
-                                this.renderCategoriesList();
-                                this.renderCategories();
-                                this.renderCategorySelector();
-                            } else {
-                                Utils.showStatusMessage('删除分类失败', true);
-                            }
-                        }
-                    });
-                    
-                    Elements.categoriesList.appendChild(item);
-                });
-            },
-            
-            // 渲染仓库列表
-            renderRepoList(repos) {
-                Elements.repoList.innerHTML = '';
-                const fragment = Utils.createFragment();
-                
-                // 按名称排序，优先显示包含philosophy或blog的仓库
-                repos.sort((a, b) => {
-                    const aIsBlog = a.name.includes('philosophy') || a.name.includes('blog');
-                    const bIsBlog = b.name.includes('philosophy') || b.name.includes('blog');
-                    
-                    if (aIsBlog && !bIsBlog) return -1;
-                    if (!aIsBlog && bIsBlog) return 1;
-                    return a.name.localeCompare(b.name);
-                });
-                
-                repos.forEach(repo => {
-                    const item = document.createElement('div');
-                    item.className = `repo-item ${State.selectedRepo === repo.full_name ? 'selected' : ''}`;
-                    item.dataset.fullName = repo.full_name;
-                    item.dataset.owner = repo.owner.login;
-                    item.dataset.name = repo.name;
-                    
-                    // 标记推荐的仓库
-                    const isRecommended = repo.name.includes('philosophy') || repo.name.includes('blog');
-                    
-                    item.innerHTML = `
-                        <div class="font-medium">${repo.name}</div>
-                        <div class="text-sm text-gray-500">${repo.full_name}</div>
-                        ${isRecommended ? '<div class="text-xs mt-1 text-green-600">推荐</div>' : ''}
-                    `;
-                    
-                    item.addEventListener('click', () => {
-                        document.querySelectorAll('.repo-item').forEach(i => i.classList.remove('selected'));
-                        item.classList.add('selected');
-                        State.selectedRepo = repo.full_name;
-                        Elements.confirmRepoBtn.disabled = false;
-                    });
-                    
-                    fragment.appendChild(item);
-                });
-                
-                Elements.repoList.appendChild(fragment);
-            },
-            
-            // 更新预览
-            updatePreview() {
-                const content = Elements.articleEditor.value;
-                Elements.previewContainer.innerHTML = marked.parse(content) || 
-                                                     '<p class="text-gray-500 italic">预览将显示在这里...</p>';
-            },
-            
-            // 显示模态框
-            showModal(modal) {
-                modal.style.display = 'block';
-                document.body.style.overflow = 'hidden'; // 防止背景滚动
-            },
-            
-            // 隐藏所有模态框
-            hideAllModals() {
-                Elements.modals.forEach(modal => {
-                    modal.style.display = 'none';
-                });
-                document.body.style.overflow = ''; // 恢复滚动
-            },
-            
-            // 显示管理界面
-            async showAdminInterface() {
-                // 显示加载状态
-                Elements.adminLoading.classList.remove('hidden');
-                Elements.adminContentContainer.classList.add('hidden');
-                
-                // 同步数据
-                const success = await Data.syncAllData();
-                
-                if (success) {
-                    // 渲染管理界面内容
-                    this.renderCategorySelector();
-                    this.renderArticlesTable();
-                    this.renderCategoriesList();
-                    
-                    // 更新当前仓库信息
-                    Elements.currentRepoInfo.textContent = `${State.githubOwner}/${State.githubRepo}`;
-                    
-                    // 隐藏加载状态，显示内容
-                    Elements.adminLoading.classList.add('hidden');
-                    Elements.adminContentContainer.classList.remove('hidden');
+                if (articlesOnDate.length > 0) {
+                    // 显示该日期的文章
+                    alert(`在 ${formattedDate} 有 ${articlesOnDate.length} 篇文章`);
+                    // 可以在这里实现更复杂的文章列表展示
                 } else {
-                    Utils.showStatusMessage('加载管理界面失败', true);
+                    alert(`在 ${formattedDate} 没有文章`);
                 }
-                
-                this.showModal(Elements.后台管理模态框);
             }
         };
 
-        // 事件处理模块
-        const Events = {
-            // 初始化所有事件监听
-            init() {
-                this.initModalEvents();
-                this.initCalendarEvents();
-                this.initAdminEvents();
-                this.initEditorEvents();
-                this.initRepoEvents();
-                this.initAuthEvents();
-                View.initCategoryEvents();
+        // 管理后台模块
+        const AdminPanel = {
+            // 初始化管理后台
+            async init() {
+                if (!State.isAuthenticated) {
+                    this.showAuthModal();
+                    return;
+                }
+                
+                this.showAdminPanel();
             },
             
-            // 初始化模态框事件
-            initModalEvents() {
-                // 关闭按钮事件
-                Elements.closeButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        View.hideAllModals();
-                    });
-                });
+            // 显示管理后台
+            async showAdminPanel() {
+                Elements.后台管理模态框.style.display = 'block';
+                Elements.adminLoading.classList.remove('hidden');
+                Elements.adminContentContainer.classList.add('hidden');
                 
-                // 点击模态框外部关闭
-                Elements.modals.forEach(modal => {
-                    modal.addEventListener('click', (e) => {
-                        if (e.target === modal) {
-                            View.hideAllModals();
-                        }
-                    });
-                });
-                
-                // 日历按钮事件
-                Elements.日历按钮.addEventListener('click', () => {
-                    View.renderCalendar();
-                    View.showModal(Elements.日历模态框);
-                });
-                
-                // 尘幕工作室按钮事件 - 点击时需要验证
-                Elements.尘幕工作室按钮.addEventListener('click', async () => {
-                    if (State.isAuthenticated) {
-                        // 已认证，显示管理界面
-                        await View.showAdminInterface();
-                    } else {
-                        // 未认证，显示认证模态框
-                        View.showModal(Elements.github验证模态框);
-                    }
-                });
+                try {
+                    // 加载分类
+                    await CategoryManager.loadCategories();
+                    
+                    // 渲染分类选择器
+                    CategoryManager.renderCategorySelector();
+                    
+                    // 渲染分类列表
+                    CategoryManager.renderCategoriesList();
+                    
+                    // 显示当前仓库信息
+                    Elements.currentRepoInfo.textContent = `${State.githubOwner}/${State.githubRepo}`;
+                    
+                    Elements.adminLoading.classList.add('hidden');
+                    Elements.adminContentContainer.classList.remove('hidden');
+                } catch (error) {
+                    console.error('初始化管理后台失败:', error);
+                    Utils.showStatusMessage('初始化管理后台失败: ' + error.message, true);
+                    Elements.adminLoading.classList.add('hidden');
+                }
             },
             
-            // 初始化日历事件
-            initCalendarEvents() {
-                // 上一月按钮
-                Elements.上一月按钮.addEventListener('click', () => {
-                    State.currentDate.setMonth(State.currentDate.getMonth() - 1);
-                    View.renderCalendar();
-                });
-                
-                // 下一月按钮
-                Elements.下一月按钮.addEventListener('click', () => {
-                    State.currentDate.setMonth(State.currentDate.getMonth() + 1);
-                    View.renderCalendar();
-                });
+            // 显示认证模态框
+            showAuthModal() {
+                Elements.github验证模态框.style.display = 'block';
+                Elements.githubTokenInput.value = '';
+                Utils.hideErrorLog(Elements.验证错误日志);
             },
             
-            // 初始化管理界面事件
-            initAdminEvents() {
-                // 管理菜单切换
-                Elements.adminMenuItems.forEach(item => {
-                    if (!item.id) { // 跳过有ID的特殊项
-                        item.addEventListener('click', () => {
-                            const sectionId = item.dataset.section;
-                            
-                            // 更新菜单选中状态
-                            Elements.adminMenuItems.forEach(i => i.classList.remove('active'));
-                            item.classList.add('active');
-                            
-                            // 更新显示的区域
-                            Elements.adminSections.forEach(section => {
-                                section.classList.remove('active');
-                            });
-                            document.getElementById(sectionId).classList.add('active');
-                        });
-                    }
-                });
+            // 验证GitHub令牌
+            async verifyToken() {
+                const token = Elements.githubTokenInput.value.trim();
+                if (!token) {
+                    Utils.showErrorLog(Elements.验证错误日志, '请输入GitHub令牌');
+                    return;
+                }
                 
-                // 发布文章按钮
-                Elements.发布文章按钮.addEventListener('click', async () => {
-                    const title = Elements.articleTitleInput.value.trim();
-                    let content = Elements.articleEditor.value.trim();
-                    
-                    if (!title) {
-                        return Utils.showStatusMessage('请输入文章标题', true);
-                    }
-                    
-                    if (!content) {
-                        return Utils.showStatusMessage('请输入文章内容', true);
-                    }
-                    
-                    // 在内容开头添加选中的分类ID
-                    const selectedCategories = [];
-                    document.querySelectorAll('.category-checkbox:checked').forEach(checkbox => {
-                        selectedCategories.push(checkbox.dataset.id);
-                    });
-                    
-                    if (selectedCategories.length > 0) {
-                        content = selectedCategories.join(',') + '\n\n' + content;
-                    }
-                    
-                    // 添加标题到内容开头
-                    content = title + '\n\n' + content;
-                    
-                    const success = await Data.publishArticle(title, content);
-                    
-                    if (success) {
-                        Utils.showStatusMessage('文章发布成功');
-                        // 清空表单
-                        Elements.articleTitleInput.value = '';
-                        Elements.articleEditor.value = '';
-                        document.querySelectorAll('.category-checkbox').forEach(checkbox => {
-                            checkbox.checked = false;
-                        });
-                        View.updatePreview();
-                        
-                        // 刷新文章列表
-                        await Data.syncAllData();
-                        View.renderArticles();
-                        View.renderArticlesTable();
-                    } else {
-                        Utils.showStatusMessage('文章发布失败', true);
-                    }
-                });
+                // 显示验证状态
+                Elements.验证状态.textContent = '正在验证...';
+                Elements.验证状态.className = 'mt-3 text-center';
+                Elements.验证状态.classList.remove('hidden', 'text-green-500', 'text-red-500');
                 
-                // 添加分类按钮
-                Elements.addCategoryBtn.addEventListener('click', async () => {
-                    const name = Elements.newCategoryName.value.trim();
-                    
-                    if (!name) {
-                        return Utils.showStatusMessage('请输入分类名称', true);
-                    }
-                    
-                    // 生成唯一ID
-                    const id = 'cat_' + Date.now();
-                    
-                    // 添加到分类列表
-                    State.categories.push({ id, name });
-                    
-                    // 保存分类
-                    const success = await Data.saveCategories();
-                    
-                    if (success) {
-                        Utils.showStatusMessage('分类添加成功');
-                        Elements.newCategoryName.value = '';
-                        View.renderCategoriesList();
-                        View.renderCategories();
-                        View.renderCategorySelector();
-                    } else {
-                        Utils.showStatusMessage('分类添加失败', true);
-                        // 回滚
-                        State.categories.pop();
-                    }
-                });
-                
-                // 退出登录按钮
-                Elements.退出登录按钮.addEventListener('click', () => {
-                    if (confirm('确定要退出登录吗？')) {
-                        localStorage.removeItem('githubToken');
-                        State.githubToken = null;
-                        State.isAuthenticated = false;
-                        View.hideAllModals();
-                        Utils.showStatusMessage('已退出登录');
-                    }
-                });
-                
-                // 切换仓库按钮
-                Elements.切换仓库按钮.addEventListener('click', () => {
-                    View.hideAllModals();
-                    this.showRepoSelection();
-                });
-            },
-            
-            // 初始化编辑器事件
-            initEditorEvents() {
-                // 编辑器内容变化时更新预览
-                Elements.articleEditor.addEventListener('input', () => {
-                    View.updatePreview();
-                });
-                
-                // 编辑器工具栏按钮
-                Elements.editorButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        const command = button.dataset.command;
-                        const editor = Elements.articleEditor;
-                        const start = editor.selectionStart;
-                        const end = editor.selectionEnd;
-                        const selectedText = editor.value.substring(start, end);
-                        
-                        switch (command) {
-                            case 'bold':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `**${selectedText || '加粗文本'}**` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'italic':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `*${selectedText || '斜体文本'}*` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'heading':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `# ${selectedText || '标题'}` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'list':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `- ${selectedText || '列表项1'}\n- 列表项2` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'link':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `[${selectedText || '链接文本'}](https://example.com)` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'image':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `![${selectedText || '图片描述'}](https://example.com/image.jpg)` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'code':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `\`\`\`\n${selectedText || '代码块'}\n\`\`\`` + 
-                                    editor.value.substring(end);
-                                break;
-                        }
-                        
-                        // 更新光标位置
-                        const newCursorPos = start + (selectedText ? end - start : command === 'code' ? 10 : 4);
-                        editor.focus();
-                        editor.setSelectionRange(newCursorPos, newCursorPos);
-                        
-                        // 更新预览
-                        View.updatePreview();
-                    });
-                });
-            },
-            
-            // 初始化仓库相关事件
-            initRepoEvents() {
-                // 仓库选择确认按钮
-                Elements.confirmRepoBtn.addEventListener('click', () => {
-                    if (State.selectedRepo) {
-                        const selectedRepo = document.querySelector(`.repo-item[data-full-name="${State.selectedRepo}"]`);
-                        if (selectedRepo) {
-                            const owner = selectedRepo.dataset.owner;
-                            const repo = selectedRepo.dataset.name;
-                            
-                            // 保存仓库信息
-                            Utils.saveRepoInfo(owner, repo);
-                            
-                            // 关闭模态框并显示管理界面
-                            View.hideAllModals();
-                            View.showAdminInterface();
-                            
-                            Utils.showStatusMessage(`已选择仓库: ${owner}/${repo}`);
-                        }
-                    }
-                });
-                
-                // 前往认证按钮
-                Elements.goToAuthBtn.addEventListener('click', () => {
-                    View.hideAllModals();
-                    View.showModal(Elements.github验证模态框);
-                });
-            },
-            
-            // 初始化认证相关事件
-            initAuthEvents() {
-                // 验证按钮
-                Elements.验证按钮.addEventListener('click', async () => {
-                    const token = Elements.githubTokenInput.value.trim();
-                    
-                    if (!token) {
-                        return Utils.showErrorLog(Elements.验证错误日志, '请输入GitHub令牌');
-                    }
-                    
-                    // 显示验证状态
-                    Elements.验证状态.textContent = '验证中...';
-                    Elements.验证状态.className = 'mt-3 text-center';
-                    Elements.验证状态.classList.remove('hidden', 'text-green-600', 'text-red-600');
-                    
-                    // 测试令牌
+                try {
+                    // 临时保存令牌用于验证
                     State.githubToken = token;
+                    
+                    // 测试令牌有效性
                     const isValid = await GitHubAPI.testToken();
                     
                     if (isValid) {
-                        // 验证成功
-                        Elements.验证状态.textContent = '验证成功！';
-                        Elements.验证状态.classList.add('text-green-600');
-                        
-                        // 保存令牌
+                        // 验证成功，保存令牌
                         localStorage.setItem('githubToken', token);
                         State.isAuthenticated = true;
                         
-                        // 获取用户信息
-                        const userInfo = await GitHubAPI.getUserInfo();
-                        if (userInfo) {
-                            State.githubOwner = userInfo.login;
-                        }
+                        Elements.验证状态.textContent = '验证成功！正在进入管理后台...';
+                        Elements.验证状态.classList.add('text-green-500');
                         
-                        // 延迟后关闭模态框并显示仓库选择
+                        // 关闭验证模态框并显示管理后台
                         setTimeout(() => {
-                            View.hideAllModals();
-                            this.showRepoSelection();
-                            Elements.githubTokenInput.value = '';
-                            Utils.hideErrorLog(Elements.验证错误日志);
+                            Elements.github验证模态框.style.display = 'none';
+                            this.showAdminPanel();
                         }, 1000);
                     } else {
                         // 验证失败
                         Elements.验证状态.textContent = '验证失败，请检查令牌是否正确';
-                        Elements.验证状态.classList.add('text-red-600');
-                        Utils.showErrorLog(Elements.验证错误日志, '令牌无效或没有足够的权限');
-                        
-                        // 清除状态
+                        Elements.验证状态.classList.add('text-red-500');
                         State.githubToken = null;
-                        State.isAuthenticated = false;
                     }
-                });
+                } catch (error) {
+                    console.error('验证令牌时发生错误:', error);
+                    Elements.验证状态.textContent = '验证时发生错误: ' + error.message;
+                    Elements.验证状态.classList.add('text-red-500');
+                    State.githubToken = null;
+                }
             },
             
-            // 显示仓库选择界面
-            async showRepoSelection() {
+            // 切换管理菜单
+            switchMenu(sectionId) {
+                // 更新菜单选中状态
+                Elements.adminMenuItems.forEach(item => {
+                    item.classList.toggle('active', item.dataset.section === sectionId);
+                });
+                
+                // 更新显示的区域
+                Elements.adminSections.forEach(section => {
+                    section.classList.toggle('active', section.id === sectionId);
+                });
+                
+                // 如果切换到文章管理，刷新文章列表
+                if (sectionId === 'manage-articles') {
+                    ArticleManager.renderArticlesTable();
+                }
+                
+                // 如果切换到分类管理，刷新分类列表
+                if (sectionId === 'manage-categories') {
+                    CategoryManager.renderCategoriesList();
+                }
+            },
+            
+            // 退出登录
+            logout() {
+                if (confirm('确定要退出登录吗？')) {
+                    localStorage.removeItem('githubToken');
+                    State.githubToken = null;
+                    State.isAuthenticated = false;
+                    Elements.后台管理模态框.style.display = 'none';
+                    this.showAuthModal();
+                }
+            },
+            
+            // 切换仓库
+            async switchRepo() {
+                Elements.后台管理模态框.style.display = 'none';
+                await this.showRepoSelectModal();
+            },
+            
+            // 显示仓库选择模态框
+            async showRepoSelectModal() {
                 if (!State.isAuthenticated) {
-                    View.showModal(Elements.github验证模态框);
+                    this.showAuthModal();
                     return;
                 }
                 
-                // 显示加载状态
+                Elements.repoSelectModal.style.display = 'block';
                 Elements.repoLoading.classList.remove('hidden');
                 Elements.repoListContainer.classList.add('hidden');
+                Utils.hideErrorLog(Elements.repoSelectError);
                 Elements.confirmRepoBtn.disabled = true;
-                State.selectedRepo = null;
                 
-                // 显示模态框
-                View.showModal(Elements.repoSelectModal);
-                
-                // 加载仓库列表
-                const result = await GitHubAPI.getUserRepos();
-                
-                if (result.success) {
-                    // 渲染仓库列表
-                    View.renderRepoList(result.repos);
+                try {
+                    // 获取用户仓库列表
+                    const result = await GitHubAPI.getUserRepos();
                     
-                    // 隐藏加载状态，显示列表
+                    if (!result.success) {
+                        Utils.showErrorLog(Elements.repoSelectError, result.error);
+                        Elements.repoLoading.classList.add('hidden');
+                        Elements.repoListContainer.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    // 过滤出适合的仓库（名称包含philosophy或blog）
+                    const filteredRepos = result.repos.filter(repo => 
+                        repo.name.toLowerCase().includes('philosophy') || 
+                        repo.name.toLowerCase().includes('blog') ||
+                        repo.name.toLowerCase().includes('wiki')
+                    );
+                    
+                    // 渲染仓库列表
+                    const fragment = Utils.createFragment();
+                    
+                    if (filteredRepos.length === 0) {
+                        const emptyMsg = document.createElement('p');
+                        emptyMsg.className = 'text-gray-500 italic p-4';
+                        emptyMsg.textContent = '未找到适合的仓库，请先创建一个包含"philosophy"或"blog"的仓库';
+                        fragment.appendChild(emptyMsg);
+                    } else {
+                        filteredRepos.forEach(repo => {
+                            const repoItem = document.createElement('div');
+                            repoItem.className = `repo-item ${State.githubRepo === repo.name ? 'selected' : ''}`;
+                            repoItem.dataset.owner = repo.owner.login;
+                            repoItem.dataset.name = repo.name;
+                            
+                            repoItem.innerHTML = `
+                                <div class="font-medium">${repo.name}</div>
+                                <div class="text-sm text-gray-600 mt-1">${repo.description || '无描述'}</div>
+                            `;
+                            
+                            repoItem.addEventListener('click', () => {
+                                // 移除其他选中状态
+                                document.querySelectorAll('.repo-item').forEach(item => {
+                                    item.classList.remove('selected');
+                                });
+                                // 添加当前选中状态
+                                repoItem.classList.add('selected');
+                                // 启用确认按钮
+                                Elements.confirmRepoBtn.disabled = false;
+                                // 保存选中的仓库
+                                State.selectedRepo = {
+                                    owner: repo.owner.login,
+                                    name: repo.name
+                                };
+                            });
+                            
+                            fragment.appendChild(repoItem);
+                        });
+                    }
+                    
+                    Elements.repoList.innerHTML = '';
+                    Elements.repoList.appendChild(fragment);
+                    
                     Elements.repoLoading.classList.add('hidden');
                     Elements.repoListContainer.classList.remove('hidden');
-                    
-                    // 如果有当前仓库，尝试选中它
-                    if (State.githubOwner && State.githubRepo) {
-                        const fullName = `${State.githubOwner}/${State.githubRepo}`;
-                        const repoItem = document.querySelector(`.repo-item[data-full-name="${fullName}"]`);
-                        if (repoItem) {
-                            repoItem.click();
-                        }
-                    }
-                } else {
-                    // 显示错误
+                } catch (error) {
+                    console.error('获取仓库列表时发生错误:', error);
+                    Utils.showErrorLog(Elements.repoSelectError, error.message);
                     Elements.repoLoading.classList.add('hidden');
-                    Utils.showErrorLog(Elements.repoSelectError, `加载仓库失败: ${result.error}`);
+                    Elements.repoListContainer.classList.remove('hidden');
                 }
+            },
+            
+            // 确认选择仓库
+            confirmRepoSelection() {
+                if (!State.selectedRepo) return;
+                
+                // 保存仓库信息
+                Utils.saveRepoInfo(State.selectedRepo.owner, State.selectedRepo.name);
+                
+                // 关闭仓库选择模态框
+                Elements.repoSelectModal.style.display = 'none';
+                
+                // 重新加载数据并显示管理后台
+                this.showAdminPanel();
+                
+                // 重新加载文章
+                ArticleManager.loadArticles();
+                
+                Utils.showStatusMessage(`已切换到仓库: ${State.githubOwner}/${State.githubRepo}`);
             }
         };
 
+        // 初始化事件监听
+        function initEventListeners() {
+            // 关闭模态框按钮
+            Elements.closeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const modal = this.closest('.modal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+            
+            // 点击模态框外部关闭
+            Elements.modals.forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.style.display = 'none';
+                    }
+                });
+            });
+            
+            // 日历按钮
+            Elements.日历按钮.addEventListener('click', () => {
+                Elements.日历模态框.style.display = 'block';
+            });
+            
+            // 日历上一个月
+            Elements.上一月按钮.addEventListener('click', () => {
+                Calendar.prevMonth();
+            });
+            
+            // 日历下一个月
+            Elements.下一月按钮.addEventListener('click', () => {
+                Calendar.nextMonth();
+            });
+            
+            // 尘幕工作室按钮（管理后台）
+            Elements.尘幕工作室按钮.addEventListener('click', () => {
+                AdminPanel.init();
+            });
+            
+            // 全部分类按钮
+            document.querySelector('.分类标签[data-category="all"]').addEventListener('click', () => {
+                document.querySelectorAll('.分类标签').forEach(tag => tag.classList.remove('active'));
+                document.querySelector('.分类标签[data-category="all"]').classList.add('active');
+                State.selectedCategory = 'all';
+                ArticleManager.filterArticles();
+            });
+            
+            // 编辑器按钮
+            Elements.editorButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const command = this.dataset.command;
+                    const editor = Elements.articleEditor;
+                    const start = editor.selectionStart;
+                    const end = editor.selectionEnd;
+                    const selectedText = editor.value.substring(start, end);
+                    
+                    let resultText = '';
+                    
+                    switch (command) {
+                        case 'bold':
+                            resultText = `**${selectedText || '粗体文本'}**`;
+                            break;
+                        case 'italic':
+                            resultText = `*${selectedText || '斜体文本'}*`;
+                            break;
+                        case 'heading':
+                            resultText = `# ${selectedText || '标题'}`;
+                            break;
+                        case 'list':
+                            resultText = `- ${selectedText || '列表项1'}\n- 列表项2\n- 列表项3`;
+                            break;
+                        case 'link':
+                            resultText = `[${selectedText || '链接文本'}](https://example.com)`;
+                            break;
+                        case 'image':
+                            resultText = `![${selectedText || '图片描述'}](https://picsum.photos/800/400)`;
+                            break;
+                        case 'code':
+                            resultText = `\`\`\`\n${selectedText || '代码块'}\n\`\`\``;
+                            break;
+                    }
+                    
+                    // 替换选中的文本
+                    editor.value = editor.value.substring(0, start) + resultText + editor.value.substring(end);
+                    
+                    // 移动光标到插入内容的末尾
+                    const newCursorPos = start + resultText.length;
+                    editor.focus();
+                    editor.setSelectionRange(newCursorPos, newCursorPos);
+                    
+                    // 更新预览
+                    ArticleManager.updatePreview();
+                });
+            });
+            
+            // 文章编辑器输入事件（更新预览）
+            Elements.articleEditor.addEventListener('input', () => {
+                ArticleManager.updatePreview();
+            });
+            
+            // 发布文章按钮
+            Elements.发布文章按钮.addEventListener('click', () => {
+                ArticleManager.publishArticle();
+            });
+            
+            // 管理菜单切换
+            Elements.adminMenuItems.forEach(item => {
+                if (item.dataset.section) {
+                    item.addEventListener('click', () => {
+                        AdminPanel.switchMenu(item.dataset.section);
+                    });
+                }
+            });
+            
+            // 添加分类按钮
+            Elements.addCategoryBtn.addEventListener('click', () => {
+                const categoryName = Elements.newCategoryName.value.trim();
+                CategoryManager.addCategory(categoryName);
+                Elements.newCategoryName.value = '';
+            });
+            
+            // 验证按钮
+            Elements.验证按钮.addEventListener('click', () => {
+                AdminPanel.verifyToken();
+            });
+            
+            // 退出登录按钮
+            Elements.退出登录按钮.addEventListener('click', () => {
+                AdminPanel.logout();
+            });
+            
+            // 切换仓库按钮
+            Elements.切换仓库按钮.addEventListener('click', () => {
+                AdminPanel.switchRepo();
+            });
+            
+            // 确认仓库选择按钮
+            Elements.confirmRepoBtn.addEventListener('click', () => {
+                AdminPanel.confirmRepoSelection();
+            });
+            
+            // 前往认证按钮
+            Elements.goToAuthBtn.addEventListener('click', () => {
+                Elements.repoDetectFailModal.style.display = 'none';
+                AdminPanel.showAuthModal();
+            });
+        }
+
         // 初始化应用
         async function initApp() {
-            // 强制设置为指定仓库
-            State.githubOwner = '7534tafuya1314';
-            State.githubRepo = '7534tafuya1314.github.io';
+            // 初始化事件监听
+            initEventListeners();
             
-            // 加载文章和分类（无需认证）
-            await Data.syncAllData();
-            View.renderCategories();
-            View.renderArticles();
+            // 初始化日历
+            Calendar.init();
             
-            // 初始化事件
-            Events.init();
+            // 加载分类
+            await CategoryManager.loadCategories();
+            CategoryManager.renderCategoryTags();
+            
+            // 加载文章
+            await ArticleManager.loadArticles();
             
             // 设置自动同步
             setInterval(async () => {
-                await Data.syncAllData();
-                View.renderCategories();
-                View.renderArticles();
+                console.log('自动同步数据...');
+                await CategoryManager.loadCategories();
+                CategoryManager.renderCategoryTags();
+                await ArticleManager.loadArticles();
             }, Config.syncInterval);
         }
 
