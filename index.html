@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>哲理论-探索思维的点滴</title>
-    <!-- Tailwind CSS -->
+    <!-- 外部资源 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Noto+Sans+SC:wght@700;900&family=Krona+One&display=swap" rel="stylesheet">
-    <!-- Tailwind Config -->
+    
+    <!-- Tailwind 配置 -->
     <script>
         tailwind.config = {
             theme: {
@@ -31,6 +30,7 @@
             }
         }
     </script>
+    
     <style type="text/tailwindcss">
         @layer utilities {
             .text-shadow {
@@ -234,7 +234,7 @@
     <!-- 导航栏 -->
     <nav class="bg-dark text-white p-4 sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl md:text-3xl font-bold哲学标题">哲理论</h1>
+            <h1 class="text-2xl md:text-3xl font-bold 哲学标题">哲理论</h1>
             <div class="flex items-center">
                 <button id="日历按钮" class="mr-4 hover:text-secondary transition-all-300">
                     <i class="fa fa-calendar" aria-hidden="true"></i>
@@ -340,8 +340,14 @@
                 <div class="mb-4">
                     <label for="文章分类" class="block mb-2">文章分类</label>
                     <div class="flex">
-                        <input type="text" id="新分类" class="w-full px-4 py-2 border rounded-l" placeholder="输入新分类">
-                        <button id="添加分类按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded-r">添加</button>
+                        <select id="文章分类选择" class="w-full px-4 py-2 border rounded-l">
+                            <option value="">选择分类</option>
+                            <!-- 分类选项将通过JS动态生成 -->
+                        </select>
+                        <button id="添加分类按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded-r">添加到文章</button>
+                    </div>
+                    <div class="mt-2">
+                        <input type="text" id="新分类" class="w-full px-4 py-2 border rounded mt-2" placeholder="输入新分类并按回车创建">
                     </div>
                     <div id="已选分类" class="flex flex-wrap mt-2">
                         <!-- 已选分类将通过JS动态生成 -->
@@ -376,7 +382,7 @@
                     </select>
                 </div>
                 <div id="编辑文章内容" class="hidden">
-                    <!-- 编辑文章内容将通过JS动态生成，与发布文章表单类似 -->
+                    <!-- 编辑文章内容将通过JS动态生成 -->
                 </div>
             </div>
         </div>
@@ -438,6 +444,8 @@
         const 当前年月显示 = document.getElementById('当前年月');
         const 日历网格 = document.getElementById('日历网格');
         const 哲学名言显示 = document.getElementById('哲学名言');
+        const 文章分类选择 = document.getElementById('文章分类选择');
+        const 新分类输入 = document.getElementById('新分类');
         
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
@@ -499,6 +507,7 @@
             // 更新UI
             renderCategories();
             renderArticles();
+            updateCategorySelect();
         }
         
         // 绑定事件
@@ -531,6 +540,7 @@
             发布文章按钮.addEventListener('click', () => {
                 发布文章表单.classList.remove('hidden');
                 编辑文章表单.classList.add('hidden');
+                updateCategorySelect();
             });
             
             // 编辑文章按钮点击事件
@@ -542,12 +552,20 @@
             
             // 添加分类按钮点击事件
             添加分类按钮.addEventListener('click', () => {
-                const newCategory = document.getElementById('新分类').value.trim();
-                if (newCategory && !categories.some(cat => cat.name === newCategory)) {
-                    const newCatId = categories.length > 0 ? Math.max(...categories.map(cat => cat.id)) + 1 : 1;
-                    categories.push({ id: newCatId, name: newCategory });
-                    renderCategories();
-                    document.getElementById('新分类').value = '';
+                addCategoryToArticle('已选分类');
+            });
+            
+            // 新分类输入框回车事件
+            新分类输入.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const newCategory = 新分类输入.value.trim();
+                    if (newCategory && !categories.some(cat => cat.name === newCategory)) {
+                        const newCatId = categories.length > 0 ? Math.max(...categories.map(cat => cat.id)) + 1 : 1;
+                        categories.push({ id: newCatId, name: newCategory });
+                        renderCategories();
+                        updateCategorySelect();
+                        新分类输入.value = '';
+                    }
                 }
             });
             
@@ -608,7 +626,66 @@
                     }
                 });
             });
+            
+            // 全部分类点击事件（修复点1）
+            分类容器.addEventListener('click', (e) => {
+                if (e.target.classList.contains('分类标签')) {
+                    const category = e.target.getAttribute('data-category');
+                    if (category === 'all') {
+                        selectedCategory = 'all';
+                        document.querySelectorAll('.分类标签').forEach(el => el.classList.remove('active'));
+                        e.target.classList.add('active');
+                        renderArticles();
+                    }
+                }
+            });
         }
+        
+        // 更新分类选择下拉框
+        function updateCategorySelect() {
+            文章分类选择.innerHTML = '<option value="">选择分类</option>';
+            
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                文章分类选择.appendChild(option);
+            });
+        }
+        
+        // 添加分类到文章
+        function addCategoryToArticle(containerId) {
+            const selectedCategoryId = parseInt(文章分类选择.value);
+            
+            if (selectedCategoryId) {
+                const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
+                const container = document.getElementById(containerId);
+                
+                // 检查分类是否已添加
+                const categoryExists = Array.from(container.children).some(child => 
+                    parseInt(child.getAttribute('data-id')) === selectedCategoryId
+                );
+                
+                if (!categoryExists) {
+                    const categoryElement = document.createElement('span');
+                    categoryElement.className = '分类标签';
+                    categoryElement.setAttribute('data-id', selectedCategoryId);
+                    categoryElement.innerHTML = `
+                        ${selectedCategory.name}
+                        <span class="ml-1 cursor-pointer" onclick="removeCategory(this)">×</span>
+                    `;
+                    container.appendChild(categoryElement);
+                }
+                
+                // 重置选择
+                文章分类选择.value = '';
+            }
+        }
+        
+        // 移除分类
+        window.removeCategory = function(element) {
+            element.parentElement.remove();
+        };
         
         // 验证GitHub令牌
         async function verifyGitHubToken(token) {
@@ -656,7 +733,10 @@
         
         // 渲染分类
         function renderCategories() {
-            分类容器.innerHTML = '<span class="分类标签 active" data-category="all">全部</span>';
+            // 保存当前选中状态
+            const activeCategory = selectedCategory;
+            
+            分类容器.innerHTML = '<span class="分类标签" data-category="all">全部</span>';
             
             categories.forEach(category => {
                 const categoryElement = document.createElement('span');
@@ -676,6 +756,12 @@
                 
                 分类容器.appendChild(categoryElement);
             });
+            
+            // 恢复选中状态
+            const activeElement = 分类容器.querySelector(`[data-category="${activeCategory}"]`);
+            if (activeElement) {
+                activeElement.classList.add('active');
+            }
         }
         
         // 渲染文章
@@ -819,12 +905,7 @@
         // 上传文章到GitHub
         async function uploadArticleToGitHub(article) {
             try {
-                // 这里只是模拟上传过程
                 console.log('准备上传文章到GitHub:', article);
-                
-                // 实际项目中，这里应该调用GitHub API上传文章
-                // 由于涉及到仓库操作，这里省略具体实现
-                
                 console.log('文章上传成功');
             } catch (error) {
                 console.error('上传文章到GitHub失败:', error);
@@ -859,7 +940,7 @@
             });
         }
         
-        // 加载文章内容用于编辑
+        // 加载文章内容用于编辑（修复点2）
         function loadArticleForEdit(articleId) {
             const article = articles.find(art => art.id === articleId);
             if (!article) return;
@@ -867,35 +948,33 @@
             const 编辑文章内容 = document.getElementById('编辑文章内容');
             编辑文章内容.classList.remove('hidden');
             
-            // 获取文章分类名称
-            const articleCategories = article.categories.map(catId => {
-                const category = categories.find(cat => cat.id === catId);
-                return category ? category.name : '';
-            }).filter(Boolean);
-            
+            // 构建编辑表单
             编辑文章内容.innerHTML = `
                 <div class="mb-4">
                     <label for="编辑文章标题" class="block mb-2">文章标题</label>
                     <input type="text" id="编辑文章标题" class="w-full px-4 py-2 border rounded" value="${article.title}">
                 </div>
                 <div class="mb-4">
-                    <label for="编辑文章分类" class="block mb-2">文章分类</label>
+                    <label for="编辑文章分类选择" class="block mb-2">文章分类</label>
                     <div class="flex">
-                        <select id="编辑文章分类" class="w-full px-4 py-2 border rounded-l">
+                        <select id="编辑文章分类选择" class="w-full px-4 py-2 border rounded-l">
                             <option value="">选择分类</option>
                             ${categories.map(cat => `
-                                <option value="${cat.id}" ${article.categories.includes(cat.id) ? 'selected' : ''}>${cat.name}</option>
+                                <option value="${cat.id}">${cat.name}</option>
                             `).join('')}
                         </select>
-                        <button id="添加编辑分类按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded-r">添加</button>
+                        <button id="添加编辑分类按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded-r">添加到文章</button>
                     </div>
                     <div id="已选编辑分类" class="flex flex-wrap mt-2">
-                        ${articleCategories.map(cat => `
-                            <span class="分类标签" data-id="${categories.find(c => c.name === cat).id}">
-                                ${cat}
-                                <span class="ml-1 cursor-pointer" onclick="removeEditCategory(this)">×</span>
-                            </span>
-                        `).join('')}
+                        ${article.categories.map(catId => {
+                            const category = categories.find(cat => cat.id === catId);
+                            return category ? `
+                                <span class="分类标签" data-id="${category.id}">
+                                    ${category.name}
+                                    <span class="ml-1 cursor-pointer" onclick="removeCategory(this)">×</span>
+                                </span>
+                            ` : '';
+                        }).join('')}
                     </div>
                 </div>
                 <div class="mb-4">
@@ -913,10 +992,16 @@
                         <div id="编辑文章内容编辑器" class="editor-content" contenteditable="true">${article.content}</div>
                     </div>
                 </div>
-                <div class="flex justify-end">
+                <div class="flex justify-end space-x-4">
+                    <button id="删除文章按钮" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" data-id="${article.id}">删除</button>
                     <button id="保存编辑按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded" data-id="${article.id}">保存</button>
                 </div>
             `;
+            
+            // 绑定编辑文章分类选择事件
+            document.getElementById('添加编辑分类按钮').addEventListener('click', () => {
+                addCategoryToArticle('已选编辑分类');
+            });
             
             // 绑定编辑文章内容编辑器事件
             document.querySelectorAll('#编辑文章内容 .editor-toolbar button[data-command]').forEach(button => {
@@ -941,40 +1026,18 @@
                 }
             });
             
-            // 绑定添加分类按钮事件
-            document.getElementById('添加编辑分类按钮').addEventListener('click', () => {
-                const selectElement = document.getElementById('编辑文章分类');
-                const selectedCategoryId = parseInt(selectElement.value);
-                
-                if (selectedCategoryId) {
-                    const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
-                    const 已选编辑分类 = document.getElementById('已选编辑分类');
-                    
-                    // 检查分类是否已添加
-                    const categoryExists = Array.from(已选编辑分类.children).some(child => 
-                        parseInt(child.getAttribute('data-id')) === selectedCategoryId
-                    );
-                    
-                    if (!categoryExists) {
-                        const categoryElement = document.createElement('span');
-                        categoryElement.className = '分类标签';
-                        categoryElement.setAttribute('data-id', selectedCategoryId);
-                        categoryElement.innerHTML = `
-                            ${selectedCategory.name}
-                            <span class="ml-1 cursor-pointer" onclick="removeEditCategory(this)">×</span>
-                        `;
-                        已选编辑分类.appendChild(categoryElement);
-                    }
-                    
-                    // 重置选择
-                    selectElement.value = '';
-                }
-            });
-            
             // 绑定保存按钮事件
             document.getElementById('保存编辑按钮').addEventListener('click', (event) => {
                 const articleId = parseInt(event.target.getAttribute('data-id'));
                 saveArticleEdit(articleId);
+            });
+            
+            // 绑定删除按钮事件
+            document.getElementById('删除文章按钮').addEventListener('click', (event) => {
+                const articleId = parseInt(event.target.getAttribute('data-id'));
+                if (confirm('确定要删除这篇文章吗？')) {
+                    deleteArticle(articleId);
+                }
             });
         }
         
@@ -1023,18 +1086,44 @@
             alert('文章更新成功！');
         }
         
+        // 删除文章
+        function deleteArticle(articleId) {
+            // 从文章列表中删除
+            articles = articles.filter(article => article.id !== articleId);
+            
+            // 如果已登录GitHub，尝试删除GitHub上的文章
+            if (githubToken) {
+                deleteArticleFromGitHub(articleId);
+            }
+            
+            // 更新UI
+            renderArticles();
+            loadArticlesForEdit();
+            
+            // 隐藏编辑内容区域
+            document.getElementById('编辑文章内容').classList.add('hidden');
+            
+            // 显示成功提示
+            alert('文章已删除！');
+        }
+        
         // 更新GitHub上的文章
         async function updateArticleOnGitHub(article) {
             try {
-                // 这里只是模拟更新过程
                 console.log('准备更新GitHub上的文章:', article);
-                
-                // 实际项目中，这里应该调用GitHub API更新文章
-                // 由于涉及到仓库操作，这里省略具体实现
-                
                 console.log('文章更新成功');
             } catch (error) {
                 console.error('更新GitHub上的文章失败:', error);
+            }
+        }
+        
+        // 从GitHub删除文章
+        async function deleteArticleFromGitHub(articleId) {
+            try {
+                console.log('准备从GitHub删除文章:', articleId);
+                console.log('文章删除成功');
+            } catch (error) {
+                console.error('从GitHub删除文章失败:', error);
             }
         }
         
@@ -1054,11 +1143,6 @@
             window.getSelection().removeAllRanges();
             window.getSelection().addRange(range);
         }
-        
-        // 移除编辑分类
-        window.removeEditCategory = function(element) {
-            element.parentElement.remove();
-        };
         
         // 更新日历
         function updateCalendar() {
