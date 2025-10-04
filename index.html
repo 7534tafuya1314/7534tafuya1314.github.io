@@ -34,6 +34,7 @@
             }
         }
         
+        /* 合并基础样式，减少重复定义 */
         body {
             background-color: #F5F5DC;
             font-family: 'Noto Sans SC', sans-serif;
@@ -48,15 +49,19 @@
             background-size: cover;
             background-position: center;
             position: relative;
+            height: 96px; /* 基础高度，通过媒体查询动态调整 */
+        }
+        
+        @media (min-width: 768px) {
+            .hero-section {
+                height: 384px; /* 桌面端高度 */
+            }
         }
         
         .hero-section::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0; /* 替代top/left/width/height，更简洁 */
             background-color: rgba(0, 0, 0, 0.5);
         }
         
@@ -69,8 +74,7 @@
             border-radius: 4px;
             font-size: 0.75rem;
             font-weight: bold;
-            margin-right: 8px;
-            margin-bottom: 8px;
+            margin: 0 8px 8px 0; /* 合并margin定义 */
             cursor: pointer;
             transition: all 0.2s;
         }
@@ -91,13 +95,11 @@
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
         
+        /* 模态框基础样式复用 */
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             background-color: rgba(0, 0, 0, 0.7);
             z-index: 1000;
             overflow-y: auto;
@@ -125,6 +127,11 @@
             right: 15px;
             font-size: 24px;
             cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .close-btn:hover {
+            color: #8B5A2B;
         }
         
         .loader {
@@ -140,6 +147,19 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        
+        .今日日期标记 {
+            border: 2px solid #8B5A2B;
+            background-color: rgba(139, 90, 43, 0.1);
+        }
+        
+        .哲言区域 {
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            margin-top: 15px;
+            font-style: italic;
+            color: #555;
         }
     </style>
 </head>
@@ -157,7 +177,7 @@
     </nav>
 
     <!-- 英雄区域 -->
-    <section class="hero-section h-96 flex items-center justify-center">
+    <section class="hero-section flex items-center justify-center">
         <div class="container mx-auto px-4 text-center text-white relative z-10">
             <h1 class="text-4xl md:text-6xl font-bold mb-4 text-shadow">探索思维的点滴</h1>
             <p class="text-xl md:text-2xl max-w-2xl mx-auto">记录哲学思考，分享思想火花</p>
@@ -192,9 +212,12 @@
         <div class="modal-content">
             <span class="close-btn">&times;</span>
             <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">日历</h2>
-                    <div>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                    <div class="mb-3 md:mb-0">
+                        <h2 class="text-2xl font-bold">日历</h2>
+                        <div id="当前时间显示" class="text-gray-600 mt-1"></div>
+                    </div>
+                    <div class="flex space-x-2">
                         <button id="上一月" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-l">
                             <i class="fa fa-chevron-left" aria-hidden="true"></i>
                         </button>
@@ -204,8 +227,11 @@
                         </button>
                     </div>
                 </div>
-                <div id="日历网格" class="grid grid-cols-7 gap-2 text-center">
+                <div id="日历网格" class="grid grid-cols-7 gap-2 text-center mb-6">
                     <!-- 日历通过JS动态生成 -->
+                </div>
+                <div id="哲言区域" class="哲言区域 text-center">
+                    <!-- 哲言通过JS动态生成 -->
                 </div>
             </div>
         </div>
@@ -222,8 +248,8 @@
     </div>
 
     <script>
-        // 配置与状态管理
-        const config = {
+        // 模块化组织代码 - 配置模块
+        const Config = {
             githubAPI: 'https://api.github.com',
             repoOwner: '',
             repoName: 'philosophy-blog',
@@ -231,396 +257,496 @@
             categoriesFile: 'categories.json'
         };
 
-        let state = {
+        // 状态管理模块
+        const State = {
             articles: [],
             categories: [],
             currentDate: new Date(),
-            selectedCategory: 'all'
+            selectedCategory: 'all',
+            philosophicalQuotes: [
+                { quote: "未经审视的人生，是不值得过的。", author: "苏格拉底" },
+                { quote: "存在先于本质。", author: "萨特" },
+                { quote: "我思故我在。", author: "笛卡尔" },
+                { quote: "世界是一团永恒的活火。", author: "赫拉克利特" },
+                { quote: "人不能两次踏入同一条河流。", author: "赫拉克利特" },
+                { quote: "知之为知之，不知为不知，是知也。", author: "孔子" },
+                { quote: "真理是时间的孩子，不是权威的孩子。", author: "伽利略" },
+                { quote: "人是万物的尺度。", author: "普罗泰戈拉" },
+                { quote: "过去属于死神，未来属于你自己。", author: "雪莱" },
+                { quote: "人是生而自由的，但却无往不在枷锁之中。", author: "卢梭" }
+            ],
+            // 缓存处理过的文章摘要，避免重复计算
+            articleSummaryCache: new Map()
         };
 
-        // DOM元素缓存
-        const elements = {
-            日历按钮: document.getElementById('日历按钮'),
-            日历模态框: document.getElementById('日历模态框'),
-            文章详情模态框: document.getElementById('文章详情模态框'),
-            分类容器: document.getElementById('分类容器'),
-            文章列表: document.getElementById('文章列表'),
-            上一月按钮: document.getElementById('上一月'),
-            下一月按钮: document.getElementById('下一月'),
-            当前年月显示: document.getElementById('当前年月'),
-            日历网格: document.getElementById('日历网格')
+        // DOM元素缓存模块（一次性获取，避免重复查询DOM）
+        const Elements = (() => {
+            const get = (id) => document.getElementById(id);
+            return {
+                日历按钮: get('日历按钮'),
+                日历模态框: get('日历模态框'),
+                文章详情模态框: get('文章详情模态框'),
+                分类容器: get('分类容器'),
+                文章列表: get('文章列表'),
+                上一月按钮: get('上一月'),
+                下一月按钮: get('下一月'),
+                当前年月显示: get('当前年月'),
+                日历网格: get('日历网格'),
+                当前时间显示: get('当前时间显示'),
+                哲言区域: get('哲言区域'),
+                文章详情内容: get('文章详情内容'),
+                closeButtons: document.querySelectorAll('.close-btn'),
+                modals: document.querySelectorAll('.modal')
+            };
+        })();
+
+        // 工具函数模块
+        const Utils = {
+            // 格式化日期为YYYY-MM-DD
+            formatDate(date) {
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            },
+            
+            // HTML转纯文本（用于生成摘要）
+            htmlToText(html) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                return tempDiv.textContent || '';
+            },
+            
+            // 生成文章摘要（带缓存）
+            getArticleSummary(content) {
+                if (State.articleSummaryCache.has(content)) {
+                    return State.articleSummaryCache.get(content);
+                }
+                
+                const plainText = this.htmlToText(content);
+                const summary = plainText.length > 100 
+                    ? plainText.substring(0, 100) + '...' 
+                    : plainText;
+                
+                State.articleSummaryCache.set(content, summary);
+                return summary;
+            },
+            
+            // 创建文档片段，减少DOM重绘
+            createFragment() {
+                return document.createDocumentFragment();
+            }
         };
 
-        // 初始化应用
-        async function init() {
-            // 尝试从GitHub加载数据
-            await loadDataFromGitHub();
+        // 数据加载模块
+        const DataLoader = {
+            // 统一的数据加载入口
+            async init() {
+                try {
+                    // 并行加载分类和文章，提高效率
+                    await Promise.all([
+                        this.loadCategories(),
+                        this.loadArticles()
+                    ]);
+                } catch (error) {
+                    console.log('数据加载失败，初始化空数据:', error);
+                    State.articles = [];
+                    State.categories = [];
+                    Renderer.renderCategories();
+                    Renderer.renderArticles();
+                }
+            },
             
-            // 初始化日历
-            updateCalendar();
-            
-            // 绑定事件处理
-            bindEvents();
-        }
-
-        // 从GitHub加载数据
-        async function loadDataFromGitHub() {
-            try {
-                // 先尝试加载分类
-                await loadCategories();
-                // 再加载文章
-                await loadArticles();
-            } catch (error) {
-                console.log('首次使用或加载GitHub数据失败，初始化空数据:', error);
-                state.articles = [];
-                state.categories = [];
-                renderCategories();
-                renderArticles();
-            }
-        }
-
-        // 绑定所有事件处理
-        function bindEvents() {
-            // 日历按钮点击事件
-            elements.日历按钮.addEventListener('click', () => {
-                elements.日历模态框.style.display = 'block';
-            });
-            
-            // 日历月份切换事件
-            elements.上一月按钮.addEventListener('click', () => {
-                state.currentDate.setMonth(state.currentDate.getMonth() - 1);
-                updateCalendar();
-            });
-            
-            elements.下一月按钮.addEventListener('click', () => {
-                state.currentDate.setMonth(state.currentDate.getMonth() + 1);
-                updateCalendar();
-            });
-            
-            // 关闭模态框事件
-            document.querySelectorAll('.close-btn').forEach(button => {
-                button.addEventListener('click', () => {
-                    document.querySelectorAll('.modal').forEach(modal => {
-                        modal.style.display = 'none';
-                    });
-                });
-            });
-            
-            // 点击模态框外部关闭
-            window.addEventListener('click', (event) => {
-                document.querySelectorAll('.modal').forEach(modal => {
-                    if (event.target === modal) {
-                        modal.style.display = 'none';
+            async loadCategories() {
+                try {
+                    const response = await fetch(`https://raw.githubusercontent.com/${Config.repoOwner}/${Config.repoName}/main/${Config.categoriesFile}`);
+                    
+                    if (response.ok) {
+                        State.categories = await response.json();
+                        Renderer.renderCategories();
+                    } else if (response.status === 404) {
+                        State.categories = [];
+                        Renderer.renderCategories();
+                    } else {
+                        throw new Error(`加载分类失败: ${response.status}`);
                     }
-                });
-            });
-            
-            // 分类切换事件
-            elements.分类容器.addEventListener('click', (e) => {
-                if (e.target.classList.contains('分类标签')) {
-                    const category = e.target.getAttribute('data-category');
-                    document.querySelectorAll('.分类标签').forEach(el => el.classList.remove('active'));
-                    e.target.classList.add('active');
-                    state.selectedCategory = category;
-                    renderArticles();
+                } catch (error) {
+                    console.error('加载分类错误:', error);
+                    throw error;
                 }
-            });
+            },
             
-            // 文章列表点击事件 - 用于查看文章详情
-            elements.文章列表.addEventListener('click', (e) => {
-                const articleCard = e.target.closest('.文章-card');
-                if (articleCard) {
-                    const articleId = parseInt(articleCard.getAttribute('data-id'));
-                    showArticleDetails(articleId);
-                }
-            });
-        }
-
-        // 加载分类
-        async function loadCategories() {
-            try {
-                const response = await fetch(`https://raw.githubusercontent.com/${config.repoOwner}/${config.repoName}/main/${config.categoriesFile}`);
-                
-                if (response.ok) {
-                    state.categories = await response.json();
-                    renderCategories();
-                } else if (response.status === 404) {
-                    // 如果文件不存在，初始化空分类
-                    state.categories = [];
-                    renderCategories();
-                } else {
-                    throw new Error(`加载分类失败: ${response.status}`);
-                }
-            } catch (error) {
-                console.error('加载分类错误:', error);
-                throw error;
-            }
-        }
-
-        // 渲染分类标签
-        function renderCategories() {
-            // 保留"全部"标签，清除其他现有标签
-            const allTag = elements.分类容器.querySelector('[data-category="all"]');
-            elements.分类容器.innerHTML = '';
-            elements.分类容器.appendChild(allTag);
-            
-            // 添加所有分类标签
-            state.categories.forEach(category => {
-                const tag = document.createElement('span');
-                tag.className = '分类标签';
-                tag.setAttribute('data-category', category.id);
-                tag.textContent = category.name;
-                elements.分类容器.appendChild(tag);
-            });
-        }
-
-        // 加载文章
-        async function loadArticles() {
-            try {
-                // 检查仓库和目录是否存在
-                const dirResponse = await fetch(
-                    `${config.githubAPI}/repos/${config.repoOwner}/${config.repoName}/contents/${config.articlesDir}`
-                );
-                
-                if (!dirResponse.ok) {
-                    if (dirResponse.status === 404) {
-                        // 目录不存在，显示空文章列表
-                        state.articles = [];
-                        renderArticles();
-                        return;
+            async loadArticles() {
+                try {
+                    const dirResponse = await fetch(
+                        `${Config.githubAPI}/repos/${Config.repoOwner}/${Config.repoName}/contents/${Config.articlesDir}`
+                    );
+                    
+                    if (!dirResponse.ok) {
+                        if (dirResponse.status === 404) {
+                            State.articles = [];
+                            Renderer.renderArticles();
+                            return;
+                        }
+                        throw new Error(`加载文章列表失败: ${dirResponse.status}`);
                     }
-                    throw new Error(`加载文章列表失败: ${dirResponse.status}`);
-                }
-                
-                const files = await dirResponse.json();
-                const articles = [];
-                
-                // 遍历所有文章文件
-                for (const file of files) {
-                    if (file.type === 'file' && file.name.endsWith('.md')) {
-                        try {
-                            // 获取文章内容
-                            const contentResponse = await fetch(file.download_url);
-                            if (contentResponse.ok) {
-                                const content = await contentResponse.text();
-                                
-                                // 解析文件名获取元数据 (格式: YYYY-MM-DD-title.md)
-                                const match = file.name.match(/(\d{4}-\d{2}-\d{2})-(.+)\.md/);
-                                if (match) {
-                                    const [, date, title] = match;
-                                    
-                                    // 从内容中提取分类
-                                    const lines = content.split('\n');
-                                    const categoryIds = lines[0] ? lines[0].split(',').map(id => parseInt(id)).filter(Boolean) : [];
-                                    const articleContent = lines.slice(2).join('\n');
-                                    
-                                    // 转换Markdown图片语法为HTML
-                                    const contentWithImages = articleContent.replace(
-                                        /!\[(.*?)\]\((.*?)\)/g,
-                                        '<img src="$2" alt="$1" class="max-w-full h-auto my-4">'
-                                    );
-                                    
-                                    articles.push({
-                                        id: Date.parse(date),
-                                        title: decodeURIComponent(title.replace(/-/g, ' ')),
-                                        content: contentWithImages,
-                                        categories: categoryIds,
-                                        publishDate: date,
-                                        fileName: file.name
-                                    });
+                    
+                    const files = await dirResponse.json();
+                    const articles = [];
+                    
+                    // 使用for...of而非forEach，避免Promise嵌套问题
+                    for (const file of files) {
+                        if (file.type === 'file' && file.name.endsWith('.md')) {
+                            try {
+                                const contentResponse = await fetch(file.download_url);
+                                if (contentResponse.ok) {
+                                    const content = await contentResponse.text();
+                                    const article = this.parseArticle(file.name, content);
+                                    if (article) articles.push(article);
                                 }
+                            } catch (fileError) {
+                                console.error(`处理文件 ${file.name} 时出错:`, fileError);
+                                continue;
                             }
-                        } catch (fileError) {
-                            console.error(`处理文件 ${file.name} 时出错:`, fileError);
-                            continue; // 跳过错误文件，继续处理其他文件
                         }
                     }
+                    
+                    // 排序后缓存文章
+                    State.articles = articles.sort((a, b) => new Date(b.publishDate) - new Date(a.publishDate));
+                    Renderer.renderArticles();
+                } catch (error) {
+                    console.error('加载文章错误:', error);
+                    throw error;
+                }
+            },
+            
+            // 解析文章元数据和内容
+            parseArticle(fileName, content) {
+                const match = fileName.match(/(\d{4}-\d{2}-\d{2})-(.+)\.md/);
+                if (!match) return null;
+                
+                const [, date, title] = match;
+                const lines = content.split('\n');
+                const categoryIds = lines[0] ? lines[0].split(',').map(id => parseInt(id)).filter(Boolean) : [];
+                const articleContent = lines.slice(2).join('\n');
+                
+                // 转换Markdown图片语法为HTML
+                const contentWithImages = articleContent.replace(
+                    /!\[(.*?)\]\((.*?)\)/g,
+                    '<img src="$2" alt="$1" class="max-w-full h-auto my-4">'
+                );
+                
+                return {
+                    id: Date.parse(date),
+                    title: decodeURIComponent(title.replace(/-/g, ' ')),
+                    content: contentWithImages,
+                    categories: categoryIds,
+                    publishDate: date,
+                    fileName: fileName
+                };
+            }
+        };
+
+        // 渲染模块（负责所有DOM渲染）
+        const Renderer = {
+            // 渲染分类标签
+            renderCategories() {
+                const fragment = Utils.createFragment();
+                // 保留"全部"标签
+                const allTag = Elements.分类容器.querySelector('[data-category="all"]');
+                fragment.appendChild(allTag.cloneNode(true));
+                
+                // 添加所有分类标签
+                State.categories.forEach(category => {
+                    const tag = document.createElement('span');
+                    tag.className = '分类标签';
+                    tag.setAttribute('data-category', category.id);
+                    tag.textContent = category.name;
+                    fragment.appendChild(tag);
+                });
+                
+                // 一次性更新DOM
+                Elements.分类容器.innerHTML = '';
+                Elements.分类容器.appendChild(fragment);
+            },
+            
+            // 渲染文章列表
+            renderArticles() {
+                const fragment = Utils.createFragment();
+                
+                if (State.articles.length === 0) {
+                    Elements.文章列表.innerHTML = `
+                        <div class="text-center col-span-full py-12">
+                            <p class="text-gray-500">暂无文章</p>
+                        </div>
+                    `;
+                    return;
                 }
                 
-                // 按发布日期排序（最新的在前）
-                state.articles = articles.sort((a, b) => new Date(b.publishDate) - new Date(a.publishDate));
-                renderArticles();
-            } catch (error) {
-                console.error('加载文章错误:', error);
-                throw error;
-            }
-        }
-
-        // 渲染文章列表
-        function renderArticles() {
-            elements.文章列表.innerHTML = '';
+                // 筛选文章（只执行一次筛选）
+                const filteredArticles = State.selectedCategory !== 'all' 
+                    ? State.articles.filter(article => 
+                        article.categories.includes(parseInt(State.selectedCategory))
+                      )
+                    : State.articles;
+                
+                if (filteredArticles.length === 0) {
+                    Elements.文章列表.innerHTML = `
+                        <div class="text-center col-span-full py-12">
+                            <p class="text-gray-500">该分类下暂无文章</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // 批量创建文章卡片
+                filteredArticles.forEach(article => {
+                    const articleCategories = State.categories
+                        .filter(cat => article.categories.includes(cat.id))
+                        .map(cat => cat.name);
+                    
+                    const articleCard = document.createElement('div');
+                    articleCard.className = '文章-card bg-white shadow-md';
+                    articleCard.setAttribute('data-id', article.id);
+                    
+                    // 使用缓存的摘要
+                    const summary = Utils.getArticleSummary(article.content);
+                    
+                    articleCard.innerHTML = `
+                        <div class="p-6">
+                            <div class="flex flex-wrap mb-3">
+                                ${articleCategories.map(cat => `<span class="分类标签">${cat}</span>`).join('')}
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">${article.title}</h3>
+                            <p class="text-gray-600 text-sm mb-3">${article.publishDate}</p>
+                            <p class="text-gray-700 mb-4">${summary}</p>
+                            <button class="text-primary hover:text-accent transition-all-300">
+                                阅读全文 <i class="fa fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    fragment.appendChild(articleCard);
+                });
+                
+                // 一次性更新DOM
+                Elements.文章列表.innerHTML = '';
+                Elements.文章列表.appendChild(fragment);
+            },
             
-            if (state.articles.length === 0) {
-                elements.文章列表.innerHTML = `
-                    <div class="text-center col-span-full py-12">
-                        <p class="text-gray-500">暂无文章</p>
-                    </div>
-                `;
-                return;
-            }
+            // 更新日历
+            updateCalendar() {
+                const year = State.currentDate.getFullYear();
+                const month = State.currentDate.getMonth();
+                const today = new Date();
+                const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+                
+                // 更新年月显示
+                Elements.当前年月显示.textContent = `${year}年${month + 1}月`;
+                
+                // 清空日历网格（提前计算所有内容，减少DOM操作）
+                const fragment = Utils.createFragment();
+                
+                // 添加星期标题
+                const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+                weekdays.forEach(day => {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'font-bold p-2';
+                    dayElement.textContent = day;
+                    fragment.appendChild(dayElement);
+                });
+                
+                // 获取当月第一天是星期几
+                const firstDay = new Date(year, month, 1).getDay();
+                
+                // 添加空白单元格
+                for (let i = 0; i < firstDay; i++) {
+                    const emptyCell = document.createElement('div');
+                    emptyCell.className = 'p-2 text-gray-300';
+                    fragment.appendChild(emptyCell);
+                }
+                
+                // 获取当月有文章的日期（提前计算，避免重复遍历）
+                const targetMonthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+                const articleDates = State.articles
+                    .filter(article => article.publishDate.startsWith(targetMonthStr))
+                    .map(article => parseInt(article.publishDate.split('-')[2]));
+                
+                // 获取当月的天数
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                // 添加日期单元格
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'p-2 border rounded hover:bg-gray-100 cursor-pointer relative';
+                    
+                    // 标记有文章的日期
+                    if (articleDates.includes(day)) {
+                        dayElement.classList.add('bg-light');
+                        dayElement.innerHTML = `
+                            ${day}
+                            <span class="absolute bottom-1 right-1 w-1 h-1 bg-primary rounded-full"></span>
+                        `;
+                        // 存储日期信息，用于事件委托
+                        dayElement.dataset.date = `${targetMonthStr}-${String(day).padStart(2, '0')}`;
+                    } else {
+                        dayElement.textContent = day;
+                    }
+                    
+                    // 标记今天的日期（只在当前月处理）
+                    if (isCurrentMonth && day === today.getDate()) {
+                        dayElement.classList.add('今日日期标记');
+                    }
+                    
+                    fragment.appendChild(dayElement);
+                }
+                
+                // 一次性更新日历网格
+                Elements.日历网格.innerHTML = '';
+                Elements.日历网格.appendChild(fragment);
+                
+                // 更新哲言
+                this.updatePhilosophicalQuote();
+            },
             
-            // 根据选中的分类筛选文章
-            let filteredArticles = state.articles;
-            if (state.selectedCategory !== 'all') {
-                const categoryId = parseInt(state.selectedCategory);
-                filteredArticles = state.articles.filter(article => 
-                    article.categories.includes(categoryId)
-                );
-            }
-            
-            if (filteredArticles.length === 0) {
-                elements.文章列表.innerHTML = `
-                    <div class="text-center col-span-full py-12">
-                        <p class="text-gray-500">该分类下暂无文章</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // 渲染筛选后的文章
-            filteredArticles.forEach(article => {
-                // 获取文章分类名称
-                const articleCategories = state.categories
+            // 显示文章详情
+            showArticleDetails(articleId) {
+                const article = State.articles.find(art => art.id === articleId);
+                if (!article) return;
+                
+                const articleCategories = State.categories
                     .filter(cat => article.categories.includes(cat.id))
                     .map(cat => cat.name);
                 
-                const articleCard = document.createElement('div');
-                articleCard.className = '文章-card bg-white shadow-md';
-                articleCard.setAttribute('data-id', article.id);
-                
-                // 截取文章内容作为摘要（前100个字符）
-                const plainTextContent = article.content.replace(/<[^>]*>?/gm, '');
-                const summary = plainTextContent.length > 100 
-                    ? plainTextContent.substring(0, 100) + '...' 
-                    : plainTextContent;
-                
-                articleCard.innerHTML = `
-                    <div class="p-6">
+                Elements.文章详情内容.innerHTML = `
+                    <div class="mb-4">
                         <div class="flex flex-wrap mb-3">
-                            ${articleCategories.map(cat => `
-                                <span class="分类标签">${cat}</span>
-                            `).join('')}
+                            ${articleCategories.map(cat => `<span class="分类标签">${cat}</span>`).join('')}
                         </div>
-                        <h3 class="text-xl font-bold mb-2">${article.title}</h3>
-                        <p class="text-gray-600 text-sm mb-3">${article.publishDate}</p>
-                        <p class="text-gray-700 mb-4">${summary}</p>
-                        <button class="text-primary hover:text-accent transition-all-300">
-                            阅读全文 <i class="fa fa-arrow-right ml-1"></i>
-                        </button>
+                        <h2 class="text-3xl font-bold mb-4">${article.title}</h2>
+                        <p class="text-gray-600 mb-6">发布日期: ${article.publishDate}</p>
+                        <div class="prose max-w-none">${article.content}</div>
                     </div>
                 `;
                 
-                elements.文章列表.appendChild(articleCard);
-            });
-        }
-
-        // 显示文章详情
-        function showArticleDetails(articleId) {
-            const article = state.articles.find(art => art.id === articleId);
-            if (!article) return;
+                Elements.文章详情模态框.style.display = 'block';
+            },
             
-            // 获取文章分类名称
-            const articleCategories = state.categories
-                .filter(cat => article.categories.includes(cat.id))
-                .map(cat => cat.name);
+            // 更新当前时间显示
+            updateCurrentTime() {
+                const now = new Date();
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const seconds = now.getSeconds().toString().padStart(2, '0');
+                Elements.当前时间显示.textContent = `当前时间: ${hours}:${minutes}:${seconds}`;
+            },
             
-            const detailsContent = document.getElementById('文章详情内容');
-            detailsContent.innerHTML = `
-                <div class="mb-4">
-                    <div class="flex flex-wrap mb-3">
-                        ${articleCategories.map(cat => `
-                            <span class="分类标签">${cat}</span>
-                        `).join('')}
-                    </div>
-                    <h2 class="text-3xl font-bold mb-4">${article.title}</h2>
-                    <p class="text-gray-600 mb-6">发布日期: ${article.publishDate}</p>
-                    <div class="prose max-w-none">${article.content}</div>
-                </div>
-            `;
-            
-            elements.文章详情模态框.style.display = 'block';
-        }
-
-        // 更新日历
-        function updateCalendar() {
-            const year = state.currentDate.getFullYear();
-            const month = state.currentDate.getMonth();
-            
-            // 更新年月显示
-            elements.当前年月显示.textContent = `${year}年${month + 1}月`;
-            
-            // 清空日历网格
-            elements.日历网格.innerHTML = '';
-            
-            // 添加星期标题
-            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-            weekdays.forEach(day => {
-                const dayElement = document.createElement('div');
-                dayElement.className = 'font-bold p-2';
-                dayElement.textContent = day;
-                elements.日历网格.appendChild(dayElement);
-            });
-            
-            // 获取当月第一天是星期几
-            const firstDay = new Date(year, month, 1).getDay();
-            
-            // 获取当月的天数
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            // 添加空白单元格
-            for (let i = 0; i < firstDay; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.className = 'p-2 text-gray-300';
-                elements.日历网格.appendChild(emptyCell);
+            // 更新哲学名言
+            updatePhilosophicalQuote() {
+                const randomIndex = Math.floor(Math.random() * State.philosophicalQuotes.length);
+                const quote = State.philosophicalQuotes[randomIndex];
+                Elements.哲言区域.innerHTML = `
+                    <p>${quote.quote}</p>
+                    <p class="text-right text-sm mt-1">- ${quote.author}</p>
+                `;
             }
-            
-            // 获取当月有文章的日期
-            const articleDates = state.articles
-                .map(article => article.publishDate)
-                .filter(date => date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`))
-                .map(date => parseInt(date.split('-')[2]));
-            
-            // 添加日期单元格
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dayElement = document.createElement('div');
-                dayElement.className = 'p-2 border rounded hover:bg-gray-100 cursor-pointer relative';
+        };
+
+        // 事件处理模块（集中管理所有事件）
+        const EventHandler = {
+            // 绑定所有事件
+            bindAll() {
+                // 日历按钮点击事件
+                Elements.日历按钮.addEventListener('click', () => {
+                    Elements.日历模态框.style.display = 'block';
+                });
                 
-                // 如果当天有文章，添加标记
-                if (articleDates.includes(day)) {
-                    dayElement.classList.add('bg-light');
-                    dayElement.innerHTML = `
-                        ${day}
-                        <span class="absolute bottom-1 right-1 w-1 h-1 bg-primary rounded-full"></span>
-                    `;
-                    
-                    // 添加点击事件查看当天文章
-                    dayElement.addEventListener('click', () => {
-                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                        showArticlesForDate(dateStr);
+                // 日历月份切换事件
+                Elements.上一月按钮.addEventListener('click', () => {
+                    State.currentDate.setMonth(State.currentDate.getMonth() - 1);
+                    Renderer.updateCalendar();
+                });
+                
+                Elements.下一月按钮.addEventListener('click', () => {
+                    State.currentDate.setMonth(State.currentDate.getMonth() + 1);
+                    Renderer.updateCalendar();
+                });
+                
+                // 关闭模态框事件（批量处理）
+                Elements.closeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        Elements.modals.forEach(modal => {
+                            modal.style.display = 'none';
+                        });
                     });
-                } else {
-                    dayElement.textContent = day;
-                }
+                });
                 
-                elements.日历网格.appendChild(dayElement);
+                // 点击模态框外部关闭（事件委托）
+                document.addEventListener('click', (event) => {
+                    Elements.modals.forEach(modal => {
+                        if (event.target === modal) {
+                            modal.style.display = 'none';
+                        }
+                    });
+                });
+                
+                // 分类切换事件（事件委托）
+                Elements.分类容器.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('分类标签')) {
+                        const category = e.target.getAttribute('data-category');
+                        // 只在分类变化时更新
+                        if (category !== State.selectedCategory) {
+                            document.querySelectorAll('.分类标签').forEach(el => el.classList.remove('active'));
+                            e.target.classList.add('active');
+                            State.selectedCategory = category;
+                            Renderer.renderArticles();
+                        }
+                    }
+                });
+                
+                // 文章列表点击事件（事件委托）
+                Elements.文章列表.addEventListener('click', (e) => {
+                    const articleCard = e.target.closest('.文章-card');
+                    if (articleCard) {
+                        const articleId = parseInt(articleCard.getAttribute('data-id'));
+                        Renderer.showArticleDetails(articleId);
+                    }
+                });
+                
+                // 日历日期点击事件（事件委托，替代为每个日期绑定事件）
+                Elements.日历网格.addEventListener('click', (e) => {
+                    const dayElement = e.target.closest('[data-date]');
+                    if (dayElement) {
+                        const dateStr = dayElement.dataset.date;
+                        const articlesOnDate = State.articles.filter(article => article.publishDate === dateStr);
+                        
+                        if (articlesOnDate.length > 0) {
+                            Elements.日历模态框.style.display = 'none';
+                            Renderer.showArticleDetails(articlesOnDate[0].id);
+                        }
+                    }
+                });
             }
-        }
+        };
 
-        // 显示指定日期的文章
-        function showArticlesForDate(dateStr) {
-            const articlesOnDate = state.articles.filter(article => article.publishDate === dateStr);
+        // 应用初始化
+        async function initApp() {
+            // 加载数据
+            await DataLoader.init();
             
-            if (articlesOnDate.length > 0) {
-                // 关闭日历模态框
-                elements.日历模态框.style.display = 'none';
-                
-                // 显示第一篇文章
-                showArticleDetails(articlesOnDate[0].id);
+            // 初始化日历
+            Renderer.updateCalendar();
+            
+            // 启动时间更新（使用requestAnimationFrame优化动画性能）
+            function updateTimeLoop() {
+                Renderer.updateCurrentTime();
+                requestAnimationFrame(updateTimeLoop);
             }
+            updateTimeLoop();
+            
+            // 绑定事件
+            EventHandler.bindAll();
         }
 
         // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
