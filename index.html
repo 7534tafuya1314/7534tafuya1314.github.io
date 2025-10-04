@@ -155,26 +155,6 @@
             100% { transform: rotate(360deg); }
         }
         
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(255, 255, 255, 0.8);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-        
-        .loading-text {
-            margin-top: 15px;
-            color: #8B5A2B;
-            font-weight: bold;
-        }
-        
         .今日日期标记 {
             border: 2px solid #8B5A2B;
             background-color: rgba(139, 90, 43, 0.1);
@@ -1119,7 +1099,22 @@
 
         // 视图渲染模块
         const View = {
-            // 渲染分类标签
+            // 初始化分类容器事件委托（优化点：使用事件委托统一处理所有分类标签）
+            initCategoryEvents() {
+                Elements.分类容器.addEventListener('click', (e) => {
+                    const categoryTag = e.target.closest('.分类标签');
+                    if (categoryTag) {
+                        const categoryId = categoryTag.dataset.category;
+                        // 更新选中状态
+                        document.querySelectorAll('.分类标签').forEach(t => t.classList.remove('active'));
+                        categoryTag.classList.add('active');
+                        State.selectedCategory = categoryId;
+                        this.renderArticles();
+                    }
+                });
+            },
+            
+            // 渲染分类标签（优化点：移除重复事件绑定，通过事件委托处理）
             renderCategories() {
                 const fragment = Utils.createFragment();
                 
@@ -1128,21 +1123,18 @@
                     Elements.分类容器.removeChild(Elements.分类容器.lastChild);
                 }
                 
+                // 更新"全部"标签的激活状态
+                const allTag = Elements.分类容器.querySelector('.分类标签[data-category="all"]');
+                if (allTag) {
+                    allTag.classList.toggle('active', State.selectedCategory === 'all');
+                }
+                
                 // 添加分类标签
                 State.categories.forEach(category => {
                     const tag = document.createElement('span');
                     tag.className = `分类标签 ${State.selectedCategory === category.id ? 'active' : ''}`;
                     tag.dataset.category = category.id;
                     tag.textContent = category.name;
-                    
-                    tag.addEventListener('click', () => {
-                        // 更新选中状态
-                        document.querySelectorAll('.分类标签').forEach(t => t.classList.remove('active'));
-                        tag.classList.add('active');
-                        State.selectedCategory = category.id;
-                        this.renderArticles();
-                    });
-                    
                     fragment.appendChild(tag);
                 });
                 
@@ -1208,21 +1200,6 @@
                     // 添加查看文章事件
                     card.querySelector('.查看文章按钮').addEventListener('click', () => {
                         this.showArticleDetail(article);
-                    });
-                    
-                    // 分类标签点击事件
-                    card.querySelectorAll('.分类标签').forEach(tag => {
-                        tag.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            const categoryId = tag.dataset.category;
-                            
-                            // 更新选中状态
-                            document.querySelectorAll('.分类标签').forEach(t => t.classList.remove('active'));
-                            document.querySelector(`.分类标签[data-category="${categoryId}"]`).classList.add('active');
-                            
-                            State.selectedCategory = categoryId;
-                            this.renderArticles();
-                        });
                     });
                     
                     fragment.appendChild(card);
@@ -1565,6 +1542,8 @@
                 this.initEditorEvents();
                 this.initRepoEvents();
                 this.initAuthEvents();
+                // 初始化分类容器的事件委托（关键修复）
+                View.initCategoryEvents();
             },
             
             // 初始化模态框事件
