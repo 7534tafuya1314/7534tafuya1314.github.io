@@ -4,12 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>哲理论-探索思维的点滴</title>
-    <!-- 外部资源 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Noto+Sans+SC:wght@700;900&family=Krona+One&display=swap" rel="stylesheet">
     
-    <!-- Tailwind 配置 -->
     <script>
         tailwind.config = {
             theme: {
@@ -20,11 +18,6 @@
                         accent: '#CD853F',
                         dark: '#3E2723',
                         light: '#F5F5DC'
-                    },
-                    fontFamily: {
-                        'montserrat': ['Montserrat', 'sans-serif'],
-                        'noto': ['Noto Sans SC', 'sans-serif'],
-                        'krona': ['Krona One', 'sans-serif']
                     }
                 }
             }
@@ -36,9 +29,6 @@
             .text-shadow {
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
             }
-            .bg-blur {
-                backdrop-filter: blur(8px);
-            }
             .transition-all-300 {
                 transition: all 0.3s ease;
             }
@@ -47,11 +37,6 @@
         body {
             background-color: #F5F5DC;
             font-family: 'Noto Sans SC', sans-serif;
-        }
-        
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 900;
         }
         
         .哲学标题 {
@@ -76,7 +61,8 @@
         }
         
         .分类标签 {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             padding: 4px 8px;
             background-color: #D2B48C;
             color: #3E2723;
@@ -86,7 +72,7 @@
             margin-right: 8px;
             margin-bottom: 8px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
         }
         
         .分类标签:hover, .分类标签.active {
@@ -102,21 +88,7 @@
         
         .文章-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        
-        .文章-card img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
-        
-        .文章内容摘要 {
-            max-height: 100px;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
         
         .modal {
@@ -161,37 +133,20 @@
             overflow: hidden;
         }
         
-        .editor-toolbar {
-            background-color: #f7fafc;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 8px;
-            display: flex;
-            gap: 8px;
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
         }
         
-        .editor-toolbar button {
-            background: none;
-            border: none;
+        .upload-btn-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-        }
-        
-        .editor-toolbar button:hover {
-            background-color: #e2e8f0;
-        }
-        
-        .editor-content {
-            min-height: 300px;
-            padding: 16px;
-            outline: none;
-        }
-        
-        .calendar-container {
-            background-color: rgba(255, 255, 255, 0.9);
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
         .loader {
@@ -209,37 +164,21 @@
             100% { transform: rotate(360deg); }
         }
         
-        .image-preview {
-            max-width: 100%;
-            margin: 10px 0;
-            border-radius: 4px;
+        .分类管理容器 {
+            background-color: #f9f5ea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
         }
         
-        .upload-btn-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
+        .category-delete-btn {
+            margin-left: 5px;
+            font-size: 0.8rem;
+            opacity: 0.7;
         }
         
-        .upload-btn-wrapper input[type=file] {
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-        
-        @media (max-width: 768px) {
-            .modal-content {
-                width: 95%;
-                margin: 10% auto;
-            }
-            
-            .文章-card img {
-                height: 150px;
-            }
+        .category-delete-btn:hover {
+            opacity: 1;
         }
     </style>
 </head>
@@ -294,7 +233,7 @@
     <div id="日历模态框" class="modal">
         <div class="modal-content">
             <span class="close-btn">&times;</span>
-            <div class="calendar-container p-6">
+            <div class="p-6">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">日历</h2>
                     <div>
@@ -337,63 +276,73 @@
         <div class="modal-content">
             <span class="close-btn">&times;</span>
             <h2 class="text-2xl font-bold mb-4">后台管理</h2>
-            <div class="flex mb-6">
-                <button id="发布文章按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded mr-4">发布文章</button>
-                <button id="编辑文章按钮" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded">编辑文章</button>
-            </div>
             
             <!-- 发布文章表单 -->
             <div id="发布文章表单">
-                <div class="mb-4">
-                    <label for="文章标题" class="block mb-2">文章标题</label>
-                    <input type="text" id="文章标题" class="w-full px-4 py-2 border rounded" placeholder="请输入文章标题">
-                </div>
-                <div class="mb-4">
-                    <label class="block mb-2">文章分类</label>
-                    <div class="flex">
-                        <select id="文章分类选择" class="w-full px-4 py-2 border rounded-l">
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold mb-3">发布新文章</h3>
+                    
+                    <div class="mb-4">
+                        <label for="文章标题" class="block mb-2">文章标题</label>
+                        <input type="text" id="文章标题" class="w-full px-4 py-2 border rounded" placeholder="请输入文章标题">
+                    </div>
+                    
+                    <!-- 分类管理区域 -->
+                    <div class="分类管理容器">
+                        <h4 class="font-medium mb-2">分类管理</h4>
+                        <div class="flex mb-3">
+                            <input type="text" id="新分类输入" class="flex-1 px-4 py-2 border rounded-l" placeholder="输入新分类并按回车创建">
+                            <button id="添加新分类按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded-r">添加</button>
+                        </div>
+                        <div id="所有分类列表" class="flex flex-wrap">
+                            <!-- 所有分类将在这里显示 -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block mb-2">选择文章分类</label>
+                        <div id="已选分类" class="flex flex-wrap mb-3">
+                            <!-- 已选分类将在这里显示 -->
+                        </div>
+                        <select id="文章分类选择" class="w-full px-4 py-2 border rounded">
                             <option value="">选择分类</option>
                             <!-- 分类选项通过JS动态生成 -->
                         </select>
-                        <button id="添加分类到文章按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded-r">添加</button>
+                        <button id="添加分类到文章按钮" class="mt-2 bg-accent hover:bg-primary text-white px-4 py-2 rounded">添加到文章</button>
                     </div>
-                    <div class="mt-2">
-                        <input type="text" id="新分类输入" class="w-full px-4 py-2 border rounded" placeholder="输入新分类并按回车创建">
-                    </div>
-                    <div id="已选分类" class="flex flex-wrap mt-2">
-                        <!-- 已选分类通过JS动态生成 -->
-                    </div>
-                </div>
-                <div class="mb-4">
-                    <label class="block mb-2">文章内容</label>
-                    <div class="editor-container">
-                        <div class="editor-toolbar">
-                            <!-- 只保留图片上传功能 -->
-                            <div class="upload-btn-wrapper">
-                                <button class="bg-gray-200 hover:bg-gray-300 px-3 py-1" title="上传图片">
-                                    <i class="fa fa-image"></i> 上传图片
-                                </button>
-                                <input type="file" id="图片上传按钮" accept="image/*" />
+                    
+                    <div class="mb-4">
+                        <label class="block mb-2">文章内容</label>
+                        <div class="editor-container border rounded">
+                            <div class="p-2 bg-gray-50 border-b">
+                                <div class="upload-btn-wrapper">
+                                    <button class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded">
+                                        <i class="fa fa-image"></i> 上传图片
+                                    </button>
+                                    <input type="file" id="图片上传按钮" accept="image/*" />
+                                </div>
                             </div>
+                            <div id="文章内容编辑器" class="min-h-[300px] p-4 outline-none" contenteditable="true"></div>
                         </div>
-                        <div id="文章内容编辑器" class="editor-content" contenteditable="true"></div>
                     </div>
-                </div>
-                <div class="flex justify-end">
-                    <button id="发布按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded">发布</button>
+                    
+                    <div class="flex justify-end">
+                        <button id="发布按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded">发布</button>
+                    </div>
                 </div>
             </div>
             
-            <!-- 编辑文章表单 -->
-            <div id="编辑文章表单" class="hidden">
+            <!-- 删除文章区域 -->
+            <div id="删除文章区域" class="border-t pt-6">
+                <h3 class="text-xl font-semibold mb-3">删除文章</h3>
                 <div class="mb-4">
-                    <label for="选择文章" class="block mb-2">选择文章</label>
-                    <select id="选择文章" class="w-full px-4 py-2 border rounded">
+                    <label for="选择删除文章" class="block mb-2">选择要删除的文章</label>
+                    <select id="选择删除文章" class="w-full px-4 py-2 border rounded">
                         <!-- 文章选项通过JS动态生成 -->
                     </select>
                 </div>
-                <div id="编辑文章内容区" class="hidden">
-                    <!-- 编辑文章内容通过JS动态生成 -->
+                <div class="flex justify-end">
+                    <button id="确认删除按钮" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">确认删除</button>
                 </div>
             </div>
         </div>
@@ -410,17 +359,16 @@
     </div>
 
     <script>
-        // 核心配置与状态管理
+        // 配置与状态管理
         const config = {
             githubAPI: 'https://api.github.com',
-            repoOwner: '',       // 将由GitHub API自动获取
-            repoName: 'philosophy-blog', // 存储文章的仓库名
-            articlesDir: 'articles',     // 文章存储目录
-            imagesDir: 'images',         // 图片存储目录
-            categoriesFile: 'categories.json' // 分类存储文件
+            repoOwner: '',
+            repoName: 'philosophy-blog',
+            articlesDir: 'articles',
+            imagesDir: 'images',
+            categoriesFile: 'categories.json'
         };
 
-        // 全局状态
         let state = {
             articles: [],
             categories: [],
@@ -439,11 +387,6 @@
             日历模态框: document.getElementById('日历模态框'),
             文章详情模态框: document.getElementById('文章详情模态框'),
             验证令牌按钮: document.getElementById('验证令牌按钮'),
-            发布文章按钮: document.getElementById('发布文章按钮'),
-            编辑文章按钮: document.getElementById('编辑文章按钮'),
-            发布文章表单: document.getElementById('发布文章表单'),
-            编辑文章表单: document.getElementById('编辑文章表单'),
-            添加分类到文章按钮: document.getElementById('添加分类到文章按钮'),
             发布按钮: document.getElementById('发布按钮'),
             分类容器: document.getElementById('分类容器'),
             文章列表: document.getElementById('文章列表'),
@@ -455,9 +398,12 @@
             日历网格: document.getElementById('日历网格'),
             文章分类选择: document.getElementById('文章分类选择'),
             新分类输入: document.getElementById('新分类输入'),
+            添加新分类按钮: document.getElementById('添加新分类按钮'),
+            所有分类列表: document.getElementById('所有分类列表'),
             已选分类: document.getElementById('已选分类'),
-            选择文章: document.getElementById('选择文章'),
-            编辑文章内容区: document.getElementById('编辑文章内容区')
+            添加分类到文章按钮: document.getElementById('添加分类到文章按钮'),
+            选择删除文章: document.getElementById('选择删除文章'),
+            确认删除按钮: document.getElementById('确认删除按钮')
         };
 
         // 初始化应用
@@ -485,41 +431,12 @@
                 // 再加载文章
                 await loadArticles();
             } catch (error) {
-                console.log('加载GitHub数据失败，使用本地示例数据:', error);
-                loadSampleData();
+                console.log('首次使用或加载GitHub数据失败，初始化空数据:', error);
+                state.articles = [];
+                state.categories = [];
+                renderCategories();
+                renderArticles();
             }
-        }
-
-        // 加载示例数据（首次使用或GitHub加载失败时）
-        function loadSampleData() {
-            state.categories = [
-                { id: 1, name: '存在主义' },
-                { id: 2, name: '认识论' },
-                { id: 3, name: '伦理学' }
-            ];
-            
-            state.articles = [
-                {
-                    id: 1,
-                    title: '存在与时间',
-                    content: '存在主义是20世纪哲学的一个重要流派，强调个体的存在和自由选择。<br><br>存在先于本质，人首先存在，然后通过自己的选择创造自己的本质。',
-                    categories: [1],
-                    publishDate: '2025-07-15',
-                    fileName: 'existentialism-and-time.md'
-                },
-                {
-                    id: 2,
-                    title: '知识的本质',
-                    content: '认识论探讨人类知识的起源、本质和局限性。<br><br>我们如何知道我们所知道的？知识的基础是什么？这些问题一直困扰着哲学家。',
-                    categories: [2],
-                    publishDate: '2025-07-10',
-                    fileName: 'the-nature-of-knowledge.md'
-                }
-            ];
-            
-            renderCategories();
-            renderArticles();
-            updateCategorySelect();
         }
 
         // 绑定所有事件处理
@@ -528,6 +445,8 @@
             elements.尘幕工作室按钮.addEventListener('click', () => {
                 if (state.currentUser) {
                     elements.后台管理模态框.style.display = 'block';
+                    updateCategoryManagement();
+                    loadArticlesForDelete();
                 } else {
                     elements.github验证模态框.style.display = 'block';
                 }
@@ -548,47 +467,6 @@
                 }
             });
             
-            // 发布文章按钮点击事件
-            elements.发布文章按钮.addEventListener('click', () => {
-                elements.发布文章表单.classList.remove('hidden');
-                elements.编辑文章表单.classList.add('hidden');
-                updateCategorySelect();
-            });
-            
-            // 编辑文章按钮点击事件
-            elements.编辑文章按钮.addEventListener('click', () => {
-                elements.发布文章表单.classList.add('hidden');
-                elements.编辑文章表单.classList.remove('hidden');
-                loadArticlesForEdit();
-            });
-            
-            // 添加分类到文章按钮点击事件
-            elements.添加分类到文章按钮.addEventListener('click', () => {
-                addCategoryToArticle('已选分类');
-            });
-            
-            // 新分类输入框回车事件
-            elements.新分类输入.addEventListener('keypress', async (e) => {
-                if (e.key === 'Enter') {
-                    const newCategory = elements.新分类输入.value.trim();
-                    if (newCategory && !state.categories.some(cat => cat.name === newCategory)) {
-                        const newCatId = state.categories.length > 0 
-                            ? Math.max(...state.categories.map(cat => cat.id)) + 1 
-                            : 1;
-                        
-                        state.categories.push({ id: newCatId, name: newCategory });
-                        renderCategories();
-                        updateCategorySelect();
-                        elements.新分类输入.value = '';
-                        
-                        // 同步到GitHub
-                        if (state.githubToken) {
-                            await syncCategoriesToGitHub();
-                        }
-                    }
-                }
-            });
-            
             // 发布按钮点击事件
             elements.发布按钮.addEventListener('click', async () => {
                 await publishArticle();
@@ -599,8 +477,7 @@
                 const file = e.target.files[0];
                 if (file && state.githubToken) {
                     await handleImageUpload(file);
-                    // 重置输入，允许重复上传同一张图片
-                    elements.图片上传按钮.value = '';
+                    elements.图片上传按钮.value = ''; // 重置输入
                 } else if (!state.githubToken) {
                     alert('请先验证GitHub令牌以上传图片');
                 }
@@ -645,6 +522,50 @@
                     renderArticles();
                 }
             });
+            
+            // 添加新分类按钮事件
+            elements.添加新分类按钮.addEventListener('click', async () => {
+                await addNewCategory();
+            });
+            
+            // 新分类输入框回车事件
+            elements.新分类输入.addEventListener('keypress', async (e) => {
+                if (e.key === 'Enter') {
+                    await addNewCategory();
+                }
+            });
+            
+            // 添加分类到文章按钮事件
+            elements.添加分类到文章按钮.addEventListener('click', () => {
+                addCategoryToArticle();
+            });
+            
+            // 确认删除按钮事件
+            elements.确认删除按钮.addEventListener('click', async () => {
+                const selectedArticleId = parseInt(elements.选择删除文章.value);
+                if (selectedArticleId && confirm('确定要删除这篇文章吗？此操作不可恢复！')) {
+                    await deleteArticle(selectedArticleId);
+                }
+            });
+        }
+
+        // 添加新分类
+        async function addNewCategory() {
+            const newCategory = elements.新分类输入.value.trim();
+            if (newCategory && !state.categories.some(cat => cat.name === newCategory)) {
+                const newCatId = state.categories.length > 0 
+                    ? Math.max(...state.categories.map(cat => cat.id)) + 1 
+                    : 1;
+                
+                state.categories.push({ id: newCatId, name: newCategory });
+                updateCategoryManagement();
+                elements.新分类输入.value = '';
+                
+                // 同步到GitHub
+                if (state.githubToken) {
+                    await syncCategoriesToGitHub();
+                }
+            }
         }
 
         // 验证GitHub令牌
@@ -661,7 +582,7 @@
                     const userData = await response.json();
                     state.currentUser = userData;
                     state.githubToken = token;
-                    config.repoOwner = userData.login; // 设置仓库所有者为当前用户
+                    config.repoOwner = userData.login;
                     localStorage.setItem('githubToken', token);
                     
                     showValidationResult(`验证成功！欢迎，${userData.login}`, 'success');
@@ -670,14 +591,17 @@
                     setTimeout(() => {
                         elements.github验证模态框.style.display = 'none';
                         elements.后台管理模态框.style.display = 'block';
+                        updateCategoryManagement();
+                        loadArticlesForDelete();
                     }, 1000);
                     
                     return true;
                 } else {
-                    throw new Error('验证失败');
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || '验证失败');
                 }
             } catch (error) {
-                showValidationResult('GitHub令牌验证失败，请检查令牌是否有效', 'error');
+                showValidationResult(`GitHub令牌验证失败: ${error.message}`, 'error');
                 console.error('GitHub验证错误:', error);
                 return false;
             }
@@ -703,12 +627,12 @@
                 if (response.ok) {
                     state.categories = await response.json();
                     renderCategories();
-                    updateCategorySelect();
+                    updateCategoryManagement();
                 } else if (response.status === 404) {
                     // 如果文件不存在，初始化空分类
                     state.categories = [];
                     renderCategories();
-                    updateCategorySelect();
+                    updateCategoryManagement();
                 } else {
                     throw new Error(`加载分类失败: ${response.status}`);
                 }
@@ -751,28 +675,79 @@
                         body: JSON.stringify({
                             message: '更新分类',
                             content: btoa(JSON.stringify(state.categories, null, 2)),
-                            sha: sha // 如果存在则提供SHA用于更新
+                            sha: sha
                         })
                     }
                 );
                 
                 if (!response.ok) {
-                    throw new Error(`同步分类失败: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(`同步分类失败: ${errorData.message || response.status}`);
                 }
                 
                 return true;
             } catch (error) {
                 console.error('同步分类错误:', error);
-                alert('同步分类失败，请稍后重试');
+                alert(`同步分类失败: ${error.message}`);
                 return false;
             }
+        }
+
+        // 删除分类
+        async function deleteCategory(categoryId) {
+            // 检查是否有文章使用此分类
+            const articlesUsingCategory = state.articles.some(article => 
+                article.categories.includes(categoryId)
+            );
+            
+            if (articlesUsingCategory) {
+                if (!confirm('此分类仍被文章使用，删除会同时移除相关文章中的此分类，是否继续？')) {
+                    return false;
+                }
+                
+                // 移除所有文章中的此分类
+                state.articles.forEach(article => {
+                    article.categories = article.categories.filter(id => id !== categoryId);
+                });
+            }
+            
+            // 从分类列表中删除
+            state.categories = state.categories.filter(cat => cat.id !== categoryId);
+            updateCategoryManagement();
+            renderCategories();
+            
+            // 同步到GitHub
+            if (state.githubToken) {
+                // 先同步分类
+                const categoriesSynced = await syncCategoriesToGitHub();
+                
+                // 如果有文章使用了此分类，同步这些文章
+                if (articlesUsingCategory && categoriesSynced) {
+                    for (const article of state.articles) {
+                        if (article.fileName) {
+                            // 转换内容格式
+                            const contentForStorage = article.content
+                                .replace(/<img src="(.*?)" alt="(.*?)" class=".*?">/g, '![$2]($1)')
+                                .replace(/<br>/g, '\n')
+                                .replace(/<p>/g, '\n')
+                                .replace(/<\/p>/g, '\n');
+                                
+                            const fullContent = `${article.categories.join(',')}\n\n${contentForStorage}`;
+                            
+                            await syncArticleToGitHub(article.fileName, fullContent);
+                        }
+                    }
+                }
+            }
+            
+            return true;
         }
 
         // 加载文章
         async function loadArticles() {
             try {
-                // 先获取文章目录内容
-                const response = await fetch(
+                // 检查仓库和目录是否存在
+                const dirResponse = await fetch(
                     `${config.githubAPI}/repos/${config.repoOwner}/${config.repoName}/contents/${config.articlesDir}`,
                     state.githubToken ? {
                         headers: {
@@ -781,53 +756,57 @@
                     } : {}
                 );
                 
-                if (!response.ok) {
-                    if (response.status === 404) {
+                if (!dirResponse.ok) {
+                    if (dirResponse.status === 404) {
                         // 目录不存在，显示空文章列表
                         state.articles = [];
                         renderArticles();
                         return;
                     }
-                    throw new Error(`加载文章列表失败: ${response.status}`);
+                    throw new Error(`加载文章列表失败: ${dirResponse.status}`);
                 }
                 
-                const files = await response.json();
+                const files = await dirResponse.json();
                 const articles = [];
                 
                 // 遍历所有文章文件
                 for (const file of files) {
                     if (file.type === 'file' && file.name.endsWith('.md')) {
-                        // 获取文章内容
-                        const contentResponse = await fetch(file.download_url);
-                        if (contentResponse.ok) {
-                            const content = await contentResponse.text();
-                            
-                            // 解析文件名获取元数据 (格式: YYYY-MM-DD-title.md)
-                            const match = file.name.match(/(\d{4}-\d{2}-\d{2})-(.+)\.md/);
-                            if (match) {
-                                const [, date, title] = match;
+                        try {
+                            // 获取文章内容
+                            const contentResponse = await fetch(file.download_url);
+                            if (contentResponse.ok) {
+                                const content = await contentResponse.text();
                                 
-                                // 从内容中提取分类
-                                // 内容格式: 前两行是分类ID，用逗号分隔，后面是文章内容
-                                const lines = content.split('\n');
-                                const categoryIds = lines[0] ? lines[0].split(',').map(id => parseInt(id)).filter(Boolean) : [];
-                                const articleContent = lines.slice(2).join('\n'); // 跳过前两行分类信息
-                                
-                                // 转换Markdown图片语法为HTML
-                                const contentWithImages = articleContent.replace(
-                                    /!\[(.*?)\]\((.*?)\)/g,
-                                    '<img src="$2" alt="$1" class="max-w-full h-auto my-4">'
-                                );
-                                
-                                articles.push({
-                                    id: Date.parse(date), // 使用日期作为ID
-                                    title: decodeURIComponent(title.replace(/-/g, ' ')),
-                                    content: contentWithImages,
-                                    categories: categoryIds,
-                                    publishDate: date,
-                                    fileName: file.name
-                                });
+                                // 解析文件名获取元数据 (格式: YYYY-MM-DD-title.md)
+                                const match = file.name.match(/(\d{4}-\d{2}-\d{2})-(.+)\.md/);
+                                if (match) {
+                                    const [, date, title] = match;
+                                    
+                                    // 从内容中提取分类
+                                    const lines = content.split('\n');
+                                    const categoryIds = lines[0] ? lines[0].split(',').map(id => parseInt(id)).filter(Boolean) : [];
+                                    const articleContent = lines.slice(2).join('\n');
+                                    
+                                    // 转换Markdown图片语法为HTML
+                                    const contentWithImages = articleContent.replace(
+                                        /!\[(.*?)\]\((.*?)\)/g,
+                                        '<img src="$2" alt="$1" class="max-w-full h-auto my-4">'
+                                    );
+                                    
+                                    articles.push({
+                                        id: Date.parse(date),
+                                        title: decodeURIComponent(title.replace(/-/g, ' ')),
+                                        content: contentWithImages,
+                                        categories: categoryIds,
+                                        publishDate: date,
+                                        fileName: file.name
+                                    });
+                                }
                             }
+                        } catch (fileError) {
+                            console.error(`处理文件 ${file.name} 时出错:`, fileError);
+                            continue; // 跳过错误文件，继续处理其他文件
                         }
                     }
                 }
@@ -844,6 +823,10 @@
         // 处理图片上传
         async function handleImageUpload(file) {
             try {
+                // 显示加载状态
+                const originalContent = elements.文章内容编辑器.innerHTML;
+                elements.文章内容编辑器.innerHTML = '<div class="loader"></div>';
+                
                 // 读取图片文件
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
@@ -853,50 +836,15 @@
                         try {
                             // 生成唯一文件名
                             const timestamp = new Date().getTime();
-                            const extension = file.name.split('.').pop();
+                            const extension = file.name.split('.').pop().toLowerCase();
                             const fileName = `${timestamp}.${extension}`;
                             const filePath = `${config.imagesDir}/${fileName}`;
                             
-                            // 检查图片目录是否存在
-                            let dirSha = null;
-                            const dirResponse = await fetch(
-                                `${config.githubAPI}/repos/${config.repoOwner}/${config.repoName}/contents/${config.imagesDir}`,
-                                {
-                                    headers: {
-                                        'Authorization': `token ${state.githubToken}`,
-                                        'Accept': 'application/vnd.github.v3+json'
-                                    }
-                                }
-                            );
-                            
-                            // 如果目录不存在则创建
-                            if (dirResponse.status === 404) {
-                                const createDirResponse = await fetch(
-                                    `${config.githubAPI}/repos/${config.repoOwner}/${config.repoName}/contents/${config.imagesDir}`,
-                                    {
-                                        method: 'PUT',
-                                        headers: {
-                                            'Authorization': `token ${state.githubToken}`,
-                                            'Content-Type': 'application/json',
-                                            'Accept': 'application/vnd.github.v3+json'
-                                        },
-                                        body: JSON.stringify({
-                                            message: '创建图片目录',
-                                            content: ''
-                                        })
-                                    }
-                                );
-                                
-                                if (!createDirResponse.ok) {
-                                    throw new Error(`创建图片目录失败: ${createDirResponse.status}`);
-                                }
-                            } else if (dirResponse.ok) {
-                                const dirData = await dirResponse.json();
-                                dirSha = dirData.sha;
-                            }
+                            // 确保图片目录存在
+                            await ensureDirectoryExists(config.imagesDir);
                             
                             // 上传图片文件
-                            const base64Content = e.target.result.split(',')[1]; // 提取base64内容
+                            const base64Content = e.target.result.split(',')[1];
                             const response = await fetch(
                                 `${config.githubAPI}/repos/${config.repoOwner}/${config.repoName}/contents/${filePath}`,
                                 {
@@ -914,77 +862,150 @@
                             );
                             
                             if (!response.ok) {
-                                throw new Error(`上传图片失败: ${response.status}`);
+                                const errorData = await response.json();
+                                throw new Error(`上传图片失败: ${errorData.message || response.status}`);
                             }
                             
                             // 获取图片URL
                             const imageUrl = `https://raw.githubusercontent.com/${config.repoOwner}/${config.repoName}/main/${filePath}`;
                             
-                            // 将图片插入到编辑器
+                            // 恢复编辑器内容并插入图片
+                            elements.文章内容编辑器.innerHTML = originalContent;
                             insertImageToEditor(imageUrl);
                             
                             resolve(imageUrl);
                         } catch (error) {
                             console.error('图片上传错误:', error);
-                            alert('图片上传失败，请稍后重试');
+                            elements.文章内容编辑器.innerHTML = originalContent;
+                            alert(`图片上传失败: ${error.message}`);
                             reject(error);
                         }
                     };
                 });
             } catch (error) {
                 console.error('处理图片上传错误:', error);
-                alert('处理图片失败，请稍后重试');
+                alert(`处理图片失败: ${error.message}`);
                 return null;
             }
         }
 
-        // 插入图片到编辑器
-        function insertImageToEditor(imageUrl, editorId = '文章内容编辑器') {
-            const editor = document.getElementById(editorId);
-            const range = window.getSelection().getRangeAt(0);
-            
-            // 创建图片元素
-            const img = document.createElement('img');
-            img.src = imageUrl;
-            img.className = 'max-w-full h-auto my-4';
-            
-            // 在光标位置插入图片
-            range.deleteContents();
-            range.insertNode(img);
-            
-            // 添加换行
-            const br = document.createElement('br');
-            range.insertNode(br);
-            
-            // 移动光标到图片后面
-            range.setStartAfter(br);
-            range.setEndAfter(br);
-            window.getSelection().removeAllRanges();
-            window.getSelection().addRange(range);
+        // 确保目录存在
+        async function ensureDirectoryExists(dirPath) {
+            try {
+                const response = await fetch(
+                    `${config.githubAPI}/repos/${config.repoOwner}/${config.repoName}/contents/${dirPath}`,
+                    {
+                        headers: {
+                            'Authorization': `token ${state.githubToken}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    }
+                );
+                
+                if (response.status === 404) {
+                    // 目录不存在，创建目录
+                    const createResponse = await fetch(
+                        `${config.githubAPI}/repos/${config.repoOwner}/${config.repoName}/contents/${dirPath}`,
+                        {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `token ${state.githubToken}`,
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/vnd.github.v3+json'
+                            },
+                            body: JSON.stringify({
+                                message: `创建目录: ${dirPath}`,
+                                content: ''
+                            })
+                        }
+                    );
+                    
+                    if (!createResponse.ok) {
+                        const errorData = await createResponse.json();
+                        throw new Error(`创建目录失败: ${errorData.message || createResponse.status}`);
+                    }
+                } else if (!response.ok) {
+                    throw new Error(`检查目录失败: ${response.status}`);
+                }
+            } catch (error) {
+                console.error(`确保目录存在错误 ${dirPath}:`, error);
+                throw error;
+            }
         }
 
-        // 更新分类选择下拉框
-        function updateCategorySelect() {
+        // 插入图片到编辑器
+        function insertImageToEditor(imageUrl) {
+            const editor = elements.文章内容编辑器;
+            
+            // 确保编辑器获得焦点
+            editor.focus();
+            
+            // 获取光标位置
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                
+                // 创建图片元素
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.className = 'max-w-full h-auto my-4';
+                
+                // 在光标位置插入图片
+                range.insertNode(img);
+                
+                // 添加换行
+                const br = document.createElement('br');
+                range.insertNode(br);
+                
+                // 移动光标到图片后面
+                range.setStartAfter(br);
+                range.setEndAfter(br);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            } else {
+                // 如果没有选择范围，直接添加到末尾
+                editor.innerHTML += `<img src="${imageUrl}" class="max-w-full h-auto my-4"><br>`;
+            }
+        }
+
+        // 更新分类管理界面
+        function updateCategoryManagement() {
+            // 更新分类选择下拉框
             elements.文章分类选择.innerHTML = '<option value="">选择分类</option>';
             
+            // 更新所有分类列表
+            elements.所有分类列表.innerHTML = '';
+            
             state.categories.forEach(category => {
+                // 添加到下拉框
                 const option = document.createElement('option');
                 option.value = category.id;
                 option.textContent = category.name;
                 elements.文章分类选择.appendChild(option);
+                
+                // 添加到分类管理列表
+                const categoryElement = document.createElement('span');
+                categoryElement.className = '分类标签';
+                categoryElement.innerHTML = `
+                    ${category.name}
+                    <span class="category-delete-btn" onclick="deleteCategory(${category.id})">
+                        <i class="fa fa-times"></i>
+                    </span>
+                `;
+                elements.所有分类列表.appendChild(categoryElement);
             });
         }
 
         // 添加分类到文章
-        function addCategoryToArticle(containerId) {
+        function addCategoryToArticle() {
             const selectedCategoryId = parseInt(elements.文章分类选择.value);
             
             if (selectedCategoryId) {
                 const selectedCategory = state.categories.find(cat => cat.id === selectedCategoryId);
-                const container = document.getElementById(containerId);
                 
                 // 检查分类是否已添加
-                const categoryExists = Array.from(container.children).some(child => 
+                const categoryExists = Array.from(elements.已选分类.children).some(child => 
                     parseInt(child.getAttribute('data-id')) === selectedCategoryId
                 );
                 
@@ -994,9 +1015,11 @@
                     categoryElement.setAttribute('data-id', selectedCategoryId);
                     categoryElement.innerHTML = `
                         ${selectedCategory.name}
-                        <span class="ml-1 cursor-pointer" onclick="removeCategory(this)">×</span>
+                        <span class="ml-1 cursor-pointer" onclick="removeCategory(this)">
+                            <i class="fa fa-times"></i>
+                        </span>
                     `;
-                    container.appendChild(categoryElement);
+                    elements.已选分类.appendChild(categoryElement);
                 }
                 
                 // 重置选择
@@ -1009,9 +1032,13 @@
             element.parentElement.remove();
         };
 
+        // 删除分类全局函数
+        window.deleteCategory = async function(categoryId) {
+            await deleteCategory(categoryId);
+        };
+
         // 渲染分类
         function renderCategories() {
-            // 保存当前选中状态
             const activeCategory = state.selectedCategory;
             
             elements.分类容器.innerHTML = '<span class="分类标签" data-category="all">全部</span>';
@@ -1023,11 +1050,8 @@
                 categoryElement.setAttribute('data-category', category.id);
                 
                 categoryElement.addEventListener('click', () => {
-                    // 更新活动分类
                     document.querySelectorAll('.分类标签').forEach(el => el.classList.remove('active'));
                     categoryElement.classList.add('active');
-                    
-                    // 过滤文章
                     state.selectedCategory = category.id;
                     renderArticles();
                 });
@@ -1084,13 +1108,13 @@
                 }
                 
                 articleCard.innerHTML = `
-                    <img src="${coverImage}" alt="${article.title}">
+                    <img src="${coverImage}" alt="${article.title}" class="w-full h-48 object-cover">
                     <div class="p-6">
                         <div class="mb-2">
                             ${articleCategories.map(cat => `<span class="分类标签">${cat}</span>`).join('')}
                         </div>
                         <h3 class="text-xl font-bold mb-2">${article.title}</h3>
-                        <p class="text-gray-600 mb-4 文章内容摘要">${article.content.replace(/<[^>]*>?/gm, '').substring(0, 150)}...</p>
+                        <p class="text-gray-600 mb-4 line-clamp-3">${article.content.replace(/<[^>]*>?/gm, '').substring(0, 150)}...</p>
                         <div class="flex justify-between items-center">
                             <span class="text-gray-500 text-sm">${formatDate(article.publishDate)}</span>
                             <button class="查看全文按钮 bg-accent hover:bg-primary text-white px-4 py-2 rounded" data-id="${article.id}">查看全文</button>
@@ -1156,55 +1180,69 @@
                 return;
             }
             
-            // 准备文章数据
-            const publishDate = new Date().toISOString().split('T')[0];
-            const safeTitle = title.replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-            const fileName = `${publishDate}-${safeTitle}.md`;
+            // 显示加载状态
+            elements.发布按钮.disabled = true;
+            elements.发布按钮.textContent = '发布中...';
             
-            // 文章内容格式：第一行是分类ID，第二行是空行，后面是内容
-            // 转换HTML图片为Markdown格式以便存储
-            const contentForStorage = content
-                .replace(/<img src="(.*?)" alt="(.*?)" class=".*?">/g, '![$2]($1)')
-                .replace(/<br>/g, '\n')
-                .replace(/<p>/g, '\n')
-                .replace(/<\/p>/g, '\n');
+            try {
+                // 准备文章数据
+                const publishDate = new Date().toISOString().split('T')[0];
+                const safeTitle = title.replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+                const fileName = `${publishDate}-${safeTitle}.md`;
                 
-            const fullContent = `${selectedCategories.join(',')}\n\n${contentForStorage}`;
-            
-            // 创建新文章对象
-            const newArticle = {
-                id: Date.parse(publishDate),
-                title: title,
-                content: content,
-                categories: selectedCategories,
-                publishDate: publishDate,
-                fileName: fileName
-            };
-            
-            // 同步到GitHub
-            if (state.githubToken) {
+                // 确保文章目录存在
+                await ensureDirectoryExists(config.articlesDir);
+                
+                // 文章内容格式：第一行是分类ID，第二行是空行，后面是内容
+                const contentForStorage = content
+                    .replace(/<img src="(.*?)" alt="(.*?)" class=".*?">/g, '![$2]($1)')
+                    .replace(/<br>/g, '\n')
+                    .replace(/<p>/g, '\n')
+                    .replace(/<\/p>/g, '\n');
+                    
+                const fullContent = `${selectedCategories.join(',')}\n\n${contentForStorage}`;
+                
+                // 同步到GitHub
                 const success = await syncArticleToGitHub(fileName, fullContent);
                 if (!success) {
                     return;
                 }
+                
+                // 创建新文章对象
+                const newArticle = {
+                    id: Date.parse(publishDate),
+                    title: title,
+                    content: content,
+                    categories: selectedCategories,
+                    publishDate: publishDate,
+                    fileName: fileName
+                };
+                
+                // 添加到本地文章列表
+                state.articles.unshift(newArticle);
+                
+                // 更新UI
+                renderArticles();
+                loadArticlesForDelete();
+                
+                // 重置表单
+                document.getElementById('文章标题').value = '';
+                elements.文章内容编辑器.innerHTML = '';
+                elements.已选分类.innerHTML = '';
+                
+                // 关闭模态框
+                elements.后台管理模态框.style.display = 'none';
+                
+                // 显示成功提示
+                alert('文章发布成功！');
+            } catch (error) {
+                console.error('发布文章错误:', error);
+                alert(`发布文章失败: ${error.message}`);
+            } finally {
+                // 恢复按钮状态
+                elements.发布按钮.disabled = false;
+                elements.发布按钮.textContent = '发布';
             }
-            
-            // 添加到本地文章列表
-            state.articles.unshift(newArticle);
-            
-            // 更新UI
-            renderArticles();
-            
-            // 重置表单
-            document.getElementById('文章标题').value = '';
-            elements.文章内容编辑器.innerHTML = '';
-            document.getElementById('已选分类').innerHTML = '';
-            
-            // 关闭模态框
-            elements.后台管理模态框.style.display = 'none';
-            
-            // 显示成功提示
-            alert('文章发布成功！');
         }
 
         // 同步文章到GitHub
@@ -1248,24 +1286,25 @@
                 );
                 
                 if (!response.ok) {
-                    throw new Error(`同步文章失败: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(`同步文章失败: ${errorData.message || response.status}`);
                 }
                 
                 return true;
             } catch (error) {
                 console.error('同步文章错误:', error);
-                alert('同步文章失败，请稍后重试');
+                alert(`同步文章失败: ${error.message}`);
                 return false;
             }
         }
 
-        // 加载文章用于编辑
-        function loadArticlesForEdit() {
-            const 选择文章 = document.getElementById('选择文章');
-            选择文章.innerHTML = '';
+        // 加载文章用于删除
+        function loadArticlesForDelete() {
+            const 选择删除文章 = elements.选择删除文章;
+            选择删除文章.innerHTML = '';
             
             if (state.articles.length === 0) {
-                选择文章.innerHTML = '<option value="">暂无文章</option>';
+                选择删除文章.innerHTML = '<option value="">暂无文章</option>';
                 return;
             }
             
@@ -1273,202 +1312,22 @@
                 const option = document.createElement('option');
                 option.value = article.id;
                 option.textContent = `${article.title} (${formatDate(article.publishDate)})`;
-                选择文章.appendChild(option);
+                选择删除文章.appendChild(option);
             });
-            
-            // 添加文章选择事件
-            选择文章.addEventListener('change', () => {
-                const selectedArticleId = parseInt(选择文章.value);
-                if (selectedArticleId) {
-                    loadArticleForEdit(selectedArticleId);
-                } else {
-                    elements.编辑文章内容区.classList.add('hidden');
-                }
-            });
-        }
-
-        // 加载文章内容用于编辑
-        function loadArticleForEdit(articleId) {
-            const article = state.articles.find(art => art.id === articleId);
-            if (!article) return;
-            
-            const 编辑文章内容区 = elements.编辑文章内容区;
-            编辑文章内容区.classList.remove('hidden');
-            
-            // 构建编辑表单
-            编辑文章内容区.innerHTML = `
-                <div class="mb-4">
-                    <label for="编辑文章标题" class="block mb-2">文章标题</label>
-                    <input type="text" id="编辑文章标题" class="w-full px-4 py-2 border rounded" value="${article.title}">
-                </div>
-                <div class="mb-4">
-                    <label for="编辑文章分类选择" class="block mb-2">文章分类</label>
-                    <div class="flex">
-                        <select id="编辑文章分类选择" class="w-full px-4 py-2 border rounded-l">
-                            <option value="">选择分类</option>
-                            ${state.categories.map(cat => `
-                                <option value="${cat.id}">${cat.name}</option>
-                            `).join('')}
-                        </select>
-                        <button id="添加编辑分类按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded-r">添加</button>
-                    </div>
-                    <div id="已选编辑分类" class="flex flex-wrap mt-2">
-                        ${article.categories.map(catId => {
-                            const category = state.categories.find(cat => cat.id === catId);
-                            return category ? `
-                                <span class="分类标签" data-id="${category.id}">
-                                    ${category.name}
-                                    <span class="ml-1 cursor-pointer" onclick="removeCategory(this)">×</span>
-                                </span>
-                            ` : '';
-                        }).join('')}
-                    </div>
-                </div>
-                <div class="mb-4">
-                    <label class="block mb-2">文章内容</label>
-                    <div class="editor-container">
-                        <div class="editor-toolbar">
-                            <div class="upload-btn-wrapper">
-                                <button class="bg-gray-200 hover:bg-gray-300 px-3 py-1" title="上传图片">
-                                    <i class="fa fa-image"></i> 上传图片
-                                </button>
-                                <input type="file" id="编辑图片上传按钮" accept="image/*" />
-                            </div>
-                        </div>
-                        <div id="编辑文章内容编辑器" class="editor-content" contenteditable="true">${article.content}</div>
-                    </div>
-                </div>
-                <div class="flex justify-end space-x-4">
-                    <button id="删除文章按钮" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" data-id="${article.id}">删除</button>
-                    <button id="保存编辑按钮" class="bg-accent hover:bg-primary text-white px-4 py-2 rounded" data-id="${article.id}">保存</button>
-                </div>
-            `;
-            
-            // 绑定编辑文章分类添加事件
-            document.getElementById('添加编辑分类按钮').addEventListener('click', () => {
-                const 编辑文章分类选择 = document.getElementById('编辑文章分类选择');
-                const selectedCategoryId = parseInt(编辑文章分类选择.value);
-                
-                if (selectedCategoryId) {
-                    const selectedCategory = state.categories.find(cat => cat.id === selectedCategoryId);
-                    const 已选编辑分类 = document.getElementById('已选编辑分类');
-                    
-                    // 检查分类是否已添加
-                    const categoryExists = Array.from(已选编辑分类.children).some(child => 
-                        parseInt(child.getAttribute('data-id')) === selectedCategoryId
-                    );
-                    
-                    if (!categoryExists) {
-                        const categoryElement = document.createElement('span');
-                        categoryElement.className = '分类标签';
-                        categoryElement.setAttribute('data-id', selectedCategoryId);
-                        categoryElement.innerHTML = `
-                            ${selectedCategory.name}
-                            <span class="ml-1 cursor-pointer" onclick="removeCategory(this)">×</span>
-                        `;
-                        已选编辑分类.appendChild(categoryElement);
-                    }
-                    
-                    // 重置选择
-                    编辑文章分类选择.value = '';
-                }
-            });
-            
-            // 绑定编辑图片上传事件
-            document.getElementById('编辑图片上传按钮').addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (file && state.githubToken) {
-                    const imageUrl = await handleImageUpload(file);
-                    if (imageUrl) {
-                        insertImageToEditor(imageUrl, '编辑文章内容编辑器');
-                    }
-                    // 重置输入
-                    e.target.value = '';
-                } else if (!state.githubToken) {
-                    alert('请先验证GitHub令牌以上传图片');
-                }
-            });
-            
-            // 绑定保存按钮事件
-            document.getElementById('保存编辑按钮').addEventListener('click', async (event) => {
-                const articleId = parseInt(event.target.getAttribute('data-id'));
-                await saveArticleEdit(articleId);
-            });
-            
-            // 绑定删除按钮事件
-            document.getElementById('删除文章按钮').addEventListener('click', async (event) => {
-                const articleId = parseInt(event.target.getAttribute('data-id'));
-                if (confirm('确定要删除这篇文章吗？')) {
-                    await deleteArticle(articleId);
-                }
-            });
-        }
-
-        // 保存文章编辑
-        async function saveArticleEdit(articleId) {
-            const article = state.articles.find(art => art.id === articleId);
-            if (!article) return;
-            
-            const title = document.getElementById('编辑文章标题').value.trim();
-            const content = document.getElementById('编辑文章内容编辑器').innerHTML;
-            
-            if (!title || !content) {
-                alert('请填写文章标题和内容');
-                return;
-            }
-            
-            // 获取已选分类
-            const selectedCategories = [];
-            document.querySelectorAll('#已选编辑分类 .分类标签').forEach(tag => {
-                const categoryId = parseInt(tag.getAttribute('data-id'));
-                selectedCategories.push(categoryId);
-            });
-            
-            if (selectedCategories.length === 0) {
-                alert('请至少选择一个分类');
-                return;
-            }
-            
-            // 转换HTML图片为Markdown格式以便存储
-            const contentForStorage = content
-                .replace(/<img src="(.*?)" alt="(.*?)" class=".*?">/g, '![$2]($1)')
-                .replace(/<br>/g, '\n')
-                .replace(/<p>/g, '\n')
-                .replace(/<\/p>/g, '\n');
-                
-            const fullContent = `${selectedCategories.join(',')}\n\n${contentForStorage}`;
-            
-            // 同步到GitHub
-            if (state.githubToken) {
-                const success = await syncArticleToGitHub(article.fileName, fullContent);
-                if (!success) {
-                    return;
-                }
-            }
-            
-            // 更新文章
-            article.title = title;
-            article.content = content;
-            article.categories = selectedCategories;
-            
-            // 更新UI
-            renderArticles();
-            
-            // 关闭模态框
-            elements.后台管理模态框.style.display = 'none';
-            
-            // 显示成功提示
-            alert('文章更新成功！');
         }
 
         // 删除文章
         async function deleteArticle(articleId) {
             const article = state.articles.find(art => art.id === articleId);
-            if (!article) return;
+            if (!article || !article.fileName) return;
             
-            // 从GitHub删除
-            if (state.githubToken) {
-                try {
+            // 显示加载状态
+            elements.确认删除按钮.disabled = true;
+            elements.确认删除按钮.textContent = '删除中...';
+            
+            try {
+                // 从GitHub删除
+                if (state.githubToken) {
                     // 先获取文件的SHA
                     const checkResponse = await fetch(
                         `${config.githubAPI}/repos/${config.repoOwner}/${config.repoName}/contents/${config.articlesDir}/${article.fileName}`,
@@ -1481,7 +1340,8 @@
                     );
                     
                     if (!checkResponse.ok) {
-                        throw new Error(`获取文章信息失败: ${checkResponse.status}`);
+                        const errorData = await checkResponse.json();
+                        throw new Error(`获取文章信息失败: ${errorData.message || checkResponse.status}`);
                     }
                     
                     const data = await checkResponse.json();
@@ -1504,27 +1364,28 @@
                     );
                     
                     if (!deleteResponse.ok) {
-                        throw new Error(`删除文章失败: ${deleteResponse.status}`);
+                        const errorData = await deleteResponse.json();
+                        throw new Error(`删除文章失败: ${errorData.message || deleteResponse.status}`);
                     }
-                } catch (error) {
-                    console.error('删除文章错误:', error);
-                    alert('删除文章失败，请稍后重试');
-                    return;
                 }
+                
+                // 从本地文章列表中删除
+                state.articles = state.articles.filter(art => art.id !== articleId);
+                
+                // 更新UI
+                renderArticles();
+                loadArticlesForDelete();
+                
+                // 显示成功提示
+                alert('文章已成功删除！');
+            } catch (error) {
+                console.error('删除文章错误:', error);
+                alert(`删除文章失败: ${error.message}`);
+            } finally {
+                // 恢复按钮状态
+                elements.确认删除按钮.disabled = false;
+                elements.确认删除按钮.textContent = '确认删除';
             }
-            
-            // 从本地文章列表中删除
-            state.articles = state.articles.filter(art => art.id !== articleId);
-            
-            // 更新UI
-            renderArticles();
-            loadArticlesForEdit();
-            
-            // 隐藏编辑内容区域
-            elements.编辑文章内容区.classList.add('hidden');
-            
-            // 显示成功提示
-            alert('文章已删除！');
         }
 
         // 更新日历
@@ -1532,10 +1393,7 @@
             const year = state.currentDate.getFullYear();
             const month = state.currentDate.getMonth();
             
-            // 更新当前年月显示
             elements.当前年月显示.textContent = `${year}年${month + 1}月`;
-            
-            // 清空日历网格
             elements.日历网格.innerHTML = '';
             
             // 添加星期标题
