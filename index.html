@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+    <!-- 头部内容保持不变 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>哲理论-探索思维的点滴</title>
@@ -26,6 +27,7 @@
     </script>
     
     <style type="text/tailwindcss">
+        <!-- 样式内容保持不变 -->
         @layer utilities {
             .text-shadow {
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
@@ -296,6 +298,7 @@
     </style>
 </head>
 <body>
+    <!-- 页面结构保持不变 -->
     <!-- 导航栏 -->
     <nav class="bg-dark text-white p-4 sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
@@ -761,6 +764,16 @@
                 localStorage.setItem('githubRepo', repo);
                 State.githubOwner = owner;
                 State.githubRepo = repo;
+            },
+            
+            // 生成新的分类ID（自然整数）
+            generateCategoryId() {
+                if (State.categories.length === 0) {
+                    return 1;
+                }
+                // 找到最大的ID并加1
+                const maxId = Math.max(...State.categories.map(cat => cat.id));
+                return maxId + 1;
             }
         };
 
@@ -869,20 +882,23 @@
                     
                     const fileData = await response.json();
                     const content = fileData.content ? Utils.decodeBase64(fileData.content) : '';
-                    return { success: true, content, sha: fileData.sha };
+                    return { 
+                        success: true, 
+                        content,
+                        sha: fileData.sha
+                    };
                 } catch (error) {
                     console.error(`获取文件 ${path} 内容时发生错误:`, error);
                     return { success: false, error: error.message };
                 }
             },
             
-            // 创建或更新文件 - 需要认证
-            async createOrUpdateFile(path, content, message, sha = null) {
+            // 创建或更新文件
+            async createOrUpdateFile(path, content, message, sha = null, needAuth = true) {
                 try {
                     const payload = {
                         message: message || `Update ${path}`,
-                        content: Utils.encodeBase64(content),
-                        branch: 'main' // 假设使用main分支
+                        content: Utils.encodeBase64(content)
                     };
                     
                     // 如果提供了sha，则是更新操作
@@ -894,7 +910,7 @@
                         `${Config.githubAPI}/repos/${State.githubOwner}/${State.githubRepo}/contents/${path}`,
                         {
                             method: sha ? 'PUT' : 'PUT',
-                            headers: this.getHeaders(true),
+                            headers: this.getHeaders(needAuth),
                             body: JSON.stringify(payload)
                         }
                     );
@@ -906,29 +922,24 @@
                     }
                     
                     const result = await response.json();
-                    return { success: true, data: result };
+                    return { success: true, result };
                 } catch (error) {
                     console.error(`创建/更新文件 ${path} 时发生错误:`, error);
                     return { success: false, error: error.message };
                 }
             },
             
-            // 删除文件 - 需要认证
-            async deleteFile(path, message, sha) {
+            // 删除文件
+            async deleteFile(path, sha, message, needAuth = true) {
                 try {
-                    if (!sha) {
-                        return { success: false, error: '缺少文件SHA值' };
-                    }
-                    
                     const response = await fetch(
                         `${Config.githubAPI}/repos/${State.githubOwner}/${State.githubRepo}/contents/${path}`,
                         {
                             method: 'DELETE',
-                            headers: this.getHeaders(true),
+                            headers: this.getHeaders(needAuth),
                             body: JSON.stringify({
                                 message: message || `Delete ${path}`,
-                                sha: sha,
-                                branch: 'main'
+                                sha: sha
                             })
                         }
                     );
@@ -940,7 +951,7 @@
                     }
                     
                     const result = await response.json();
-                    return { success: true, data: result };
+                    return { success: true, result };
                 } catch (error) {
                     console.error(`删除文件 ${path} 时发生错误:`, error);
                     return { success: false, error: error.message };
@@ -948,286 +959,698 @@
             }
         };
 
-        // 数据处理模块
-        const Data = {
-            // 加载所有文章 - 公开仓库不需要认证
-            async loadArticles() {
-                const result = await GitHubAPI.getFilesList(Config.articlesDir);
-                
-                if (!result.success) {
-                    console.error('加载文章列表失败:', result.error);
-                    return false;
-                }
-                
-                const articles = [];
-                
-                // 过滤出.md文件
-                const mdFiles = result.files.filter(file => 
-                    file.type === 'file' && file.name.endsWith('.md')
-                );
-                
-                // 加载每个文章的内容
-                for (const file of mdFiles) {
-                    const contentResult = await GitHubAPI.getFileContent(file.path);
-                    
-                    if (contentResult.success) {
-                        // 解析文件名中的日期
-                        const dateMatch = file.name.match(/^(\d{4}-\d{2}-\d{2})-/);
-                        const date = dateMatch ? new Date(dateMatch[1]) : new Date(file.last_modified);
-                        
-                        // 尝试从内容中提取第一行作为标题
-                        const lines = contentResult.content.split('\n');
-                        let title = file.name.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '').replace(/-/g, ' ');
-                        title = title.charAt(0).toUpperCase() + title.slice(1);
-                        
-                        if (lines.length > 0 && lines[0].trim() !== '') {
-                            title = lines[0].trim();
-                        }
-                        
-                        articles.push({
-                            id: file.name,
-                            title,
-                            path: file.path,
-                            sha: contentResult.sha,
-                            date,
-                            content: contentResult.content,
-                            htmlContent: marked.parse(contentResult.content)
-                        });
-                    }
-                }
-                
-                // 按日期排序（最新的在前）
-                articles.sort((a, b) => b.date - a.date);
-                
-                State.articles = articles;
-                return true;
-            },
-            
-            // 加载所有分类 - 公开仓库不需要认证
+        // 分类管理模块
+        const CategoryManager = {
+            // 加载分类
             async loadCategories() {
-                const result = await GitHubAPI.getFileContent(Config.categoriesFile);
-                
-                if (!result.success) {
-                    // 如果文件不存在，初始化空分类
-                    if (result.error.includes('404')) {
-                        State.categories = [];
-                        return true;
+                try {
+                    const result = await GitHubAPI.getFileContent(Config.categoriesFile);
+                    
+                    if (!result.success) {
+                        // 如果文件不存在，初始化空分类列表
+                        if (result.error.includes('404')) {
+                            State.categories = [];
+                            return true;
+                        }
+                        console.error('加载分类失败:', result.error);
+                        return false;
                     }
                     
-                    console.error('加载分类失败:', result.error);
-                    return false;
-                }
-                
-                try {
-                    const categories = JSON.parse(result.content);
-                    State.categories = Array.isArray(categories) ? categories : [];
-                    return true;
-                } catch (error) {
-                    console.error('解析分类文件失败:', error);
-                    State.categories = [];
-                    return false;
-                }
-            },
-            
-            // 保存分类 - 需要认证
-            async saveCategories() {
-                const content = JSON.stringify(State.categories, null, 2);
-                const result = await GitHubAPI.createOrUpdateFile(
-                    Config.categoriesFile,
-                    content,
-                    '更新分类列表',
-                    // 先获取当前文件的sha
-                    (await GitHubAPI.getFileContent(Config.categoriesFile, true)).sha
-                );
-                
-                return result.success;
-            },
-            
-            // 发布文章 - 需要认证
-            async publishArticle(title, content) {
-                const fileName = Utils.generateArticleFileName(title);
-                const filePath = `${Config.articlesDir}/${fileName}`;
-                
-                // 确保文章目录存在（通过创建一个空的.gitkeep文件）
-                await GitHubAPI.createOrUpdateFile(
-                    `${Config.articlesDir}/.gitkeep`,
-                    '',
-                    '确保文章目录存在'
-                );
-                
-                // 发布文章
-                const result = await GitHubAPI.createOrUpdateFile(
-                    filePath,
-                    content,
-                    `发布文章: ${title}`
-                );
-                
-                return result.success;
-            },
-            
-            // 删除文章 - 需要认证
-            async deleteArticle(article) {
-                const result = await GitHubAPI.deleteFile(
-                    article.path,
-                    `删除文章: ${article.title}`,
-                    article.sha
-                );
-                
-                return result.success;
-            },
-            
-            // 同步所有数据
-            async syncAllData() {
-                const articlesLoaded = await this.loadArticles();
-                const categoriesLoaded = await this.loadCategories();
-                
-                if (articlesLoaded && categoriesLoaded) {
-                    State.lastSyncTime = new Date();
-                    return true;
-                }
-                
-                return false;
-            }
-        };
-
-        // 视图渲染模块
-        const View = {
-            // 初始化分类容器事件委托
-            initCategoryEvents() {
-                Elements.分类容器.addEventListener('click', (e) => {
-                    const categoryTag = e.target.closest('.分类标签');
-                    if (categoryTag) {
-                        const categoryId = categoryTag.dataset.category;
-                        // 更新选中状态
-                        document.querySelectorAll('.分类标签').forEach(t => t.classList.remove('active'));
-                        categoryTag.classList.add('active');
-                        State.selectedCategory = categoryId;
-                        this.renderArticles();
+                    try {
+                        // 尝试解析分类数据
+                        let categories = JSON.parse(result.content);
+                        
+                        // 确保分类ID是自然整数
+                        State.categories = categories.map(cat => ({
+                            ...cat,
+                            id: Number(cat.id) || Utils.generateCategoryId()
+                        }));
+                        
+                        return true;
+                    } catch (parseError) {
+                        console.error('解析分类数据失败:', parseError);
+                        // 如果解析失败，使用空分类列表
+                        State.categories = [];
+                        return false;
                     }
+                } catch (error) {
+                    console.error('加载分类时发生错误:', error);
+                    return false;
+                }
+            },
+            
+            // 保存分类
+            async saveCategories() {
+                try {
+                    // 先获取现有文件的sha（如果存在）
+                    const existingFile = await GitHubAPI.getFileContent(Config.categoriesFile);
+                    const sha = existingFile.success ? existingFile.sha : null;
+                    
+                    // 保存分类数据
+                    const result = await GitHubAPI.createOrUpdateFile(
+                        Config.categoriesFile,
+                        JSON.stringify(State.categories, null, 2),
+                        '更新分类列表',
+                        sha
+                    );
+                    
+                    if (result.success) {
+                        Utils.showStatusMessage('分类保存成功');
+                        this.renderCategories();
+                        this.renderCategorySelector();
+                        return true;
+                    } else {
+                        Utils.showStatusMessage('分类保存失败: ' + result.error, true);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('保存分类时发生错误:', error);
+                    Utils.showStatusMessage('保存分类时发生错误: ' + error.message, true);
+                    return false;
+                }
+            },
+            
+            // 添加新分类
+            async addCategory(name) {
+                if (!name || name.trim() === '') {
+                    Utils.showStatusMessage('分类名称不能为空', true);
+                    return false;
+                }
+                
+                // 检查分类是否已存在
+                const exists = State.categories.some(cat => cat.name.trim().toLowerCase() === name.trim().toLowerCase());
+                if (exists) {
+                    Utils.showStatusMessage('该分类已存在', true);
+                    return false;
+                }
+                
+                // 生成自然整数ID
+                const newId = Utils.generateCategoryId();
+                
+                // 添加新分类
+                State.categories.push({
+                    id: newId,
+                    name: name.trim(),
+                    createdAt: new Date().toISOString()
                 });
+                
+                // 保存分类
+                return await this.saveCategories();
+            },
+            
+            // 更新分类
+            async updateCategory(id, newName) {
+                if (!newName || newName.trim() === '') {
+                    Utils.showStatusMessage('分类名称不能为空', true);
+                    return false;
+                }
+                
+                const categoryIndex = State.categories.findIndex(cat => cat.id === id);
+                if (categoryIndex === -1) {
+                    Utils.showStatusMessage('分类不存在', true);
+                    return false;
+                }
+                
+                // 检查新名称是否已被其他分类使用
+                const nameExists = State.categories.some(
+                    (cat, index) => index !== categoryIndex && 
+                    cat.name.trim().toLowerCase() === newName.trim().toLowerCase()
+                );
+                
+                if (nameExists) {
+                    Utils.showStatusMessage('该分类名称已存在', true);
+                    return false;
+                }
+                
+                // 更新分类名称
+                State.categories[categoryIndex].name = newName.trim();
+                State.categories[categoryIndex].updatedAt = new Date().toISOString();
+                
+                // 保存分类
+                return await this.saveCategories();
+            },
+            
+            // 删除分类
+            async deleteCategory(id) {
+                // 检查是否有文章使用该分类
+                const articlesWithCategory = State.articles.filter(
+                    article => article.categories && article.categories.includes(id)
+                );
+                
+                if (articlesWithCategory.length > 0) {
+                    if (!confirm(`该分类下有 ${articlesWithCategory.length} 篇文章，删除分类会同时移除这些文章的分类关联。确定要删除吗？`)) {
+                        return false;
+                    }
+                    
+                    // 移除相关文章的分类关联
+                    for (const article of articlesWithCategory) {
+                        article.categories = article.categories.filter(catId => catId !== id);
+                        await ArticleManager.updateArticle(article);
+                    }
+                }
+                
+                // 从分类列表中删除
+                State.categories = State.categories.filter(cat => cat.id !== id);
+                
+                // 保存分类
+                return await this.saveCategories();
             },
             
             // 渲染分类标签
             renderCategories() {
                 const fragment = Utils.createFragment();
                 
-                // 先清除现有分类（保留"全部"）
-                while (Elements.分类容器.children.length > 1) {
-                    Elements.分类容器.removeChild(Elements.分类容器.lastChild);
-                }
-                
-                // 更新"全部"标签的激活状态
-                const allTag = Elements.分类容器.querySelector('.分类标签[data-category="all"]');
-                if (allTag) {
-                    allTag.classList.toggle('active', State.selectedCategory === 'all');
-                }
-                
-                // 添加分类标签
+                // 跳过"全部"标签，它是固定的
                 State.categories.forEach(category => {
-                    const tag = document.createElement('span');
-                    tag.className = `分类标签 ${State.selectedCategory === category.id ? 'active' : ''}`;
-                    tag.dataset.category = category.id;
-                    tag.textContent = category.name;
-                    fragment.appendChild(tag);
+                    const categoryEl = document.createElement('span');
+                    categoryEl.className = `分类标签 ${State.selectedCategory === category.id ? 'active' : ''}`;
+                    categoryEl.textContent = category.name;
+                    categoryEl.dataset.category = category.id;
+                    
+                    categoryEl.addEventListener('click', () => {
+                        // 更新选中状态
+                        document.querySelectorAll('.分类标签').forEach(el => el.classList.remove('active'));
+                        categoryEl.classList.add('active');
+                        State.selectedCategory = category.id;
+                        
+                        // 过滤文章
+                        ArticleManager.filterArticlesByCategory();
+                    });
+                    
+                    fragment.appendChild(categoryEl);
                 });
                 
-                Elements.分类容器.appendChild(fragment);
+                // 添加到容器（在"全部"标签后面）
+                const allTag = Elements.分类容器.querySelector('[data-category="all"]');
+                if (allTag) {
+                    // 清除现有标签（保留"全部"）
+                    Array.from(Elements.分类容器.children).forEach(child => {
+                        if (child !== allTag) {
+                            Elements.分类容器.removeChild(child);
+                        }
+                    });
+                    Elements.分类容器.appendChild(fragment);
+                }
             },
             
-            // 渲染文章列表
-            renderArticles() {
-                // 隐藏加载指示器，显示文章列表
-                Elements.文章加载指示器.classList.add('hidden');
-                Elements.文章列表.classList.remove('hidden');
-                
-                Elements.文章列表.innerHTML = '';
+            // 渲染分类选择器（用于文章编辑）
+            renderCategorySelector() {
+                Elements.categorySelector.innerHTML = '';
                 const fragment = Utils.createFragment();
                 
-                // 过滤文章
-                let filteredArticles = State.articles;
-                if (State.selectedCategory !== 'all') {
-                    filteredArticles = State.articles.filter(article => {
-                        // 检查内容中是否包含分类ID
-                        return article.content.includes(State.selectedCategory);
-                    });
-                }
+                State.categories.forEach(category => {
+                    const checkboxId = `category-${category.id}`;
+                    const label = document.createElement('label');
+                    label.className = 'inline-flex items-center';
+                    label.innerHTML = `
+                        <input type="checkbox" id="${checkboxId}" value="${category.id}" class="form-checkbox h-4 w-4 text-primary rounded">
+                        <span class="ml-2">${category.name}</span>
+                    `;
+                    fragment.appendChild(label);
+                });
                 
-                if (filteredArticles.length === 0) {
-                    const emptyMessage = document.createElement('div');
-                    emptyMessage.className = 'col-span-full text-center py-12 text-gray-500';
-                    emptyMessage.innerHTML = '<i class="fa fa-book-open text-4xl mb-3"></i><p>没有找到相关文章</p>';
-                    Elements.文章列表.appendChild(emptyMessage);
+                Elements.categorySelector.appendChild(fragment);
+            },
+            
+            // 渲染分类管理列表
+            renderCategoryManagementList() {
+                Elements.categoriesList.innerHTML = '';
+                const fragment = Utils.createFragment();
+                
+                if (State.categories.length === 0) {
+                    const emptyEl = document.createElement('p');
+                    emptyEl.className = 'text-gray-500 italic';
+                    emptyEl.textContent = '暂无分类，请添加新分类';
+                    Elements.categoriesList.appendChild(emptyEl);
                     return;
                 }
                 
-                // 创建文章卡片
-                filteredArticles.forEach(article => {
-                    const card = document.createElement('div');
-                    card.className = '文章-card bg-white shadow-md';
+                State.categories.forEach(category => {
+                    const categoryEl = document.createElement('div');
+                    categoryEl.className = 'flex justify-between items-center p-3 bg-white border rounded';
                     
-                    // 获取摘要
-                    const summary = Utils.getArticleSummary(article.htmlContent);
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = category.name;
+                    nameSpan.className = 'flex-1';
                     
-                    // 查找文章关联的分类
-                    const categories = [];
-                    State.categories.forEach(category => {
-                        if (article.content.includes(category.id)) {
-                            categories.push(category);
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'flex gap-2';
+                    
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'text-blue-500 hover:text-blue-700';
+                    editBtn.innerHTML = '<i class="fa fa-pencil" aria-hidden="true"></i>';
+                    editBtn.title = '编辑';
+                    editBtn.addEventListener('click', async () => {
+                        const newName = prompt('请输入新的分类名称:', category.name);
+                        if (newName !== null) {
+                            await this.updateCategory(category.id, newName);
                         }
                     });
                     
-                    card.innerHTML = `
-                        <div class="p-6">
-                            <div class="flex flex-wrap gap-2 mb-3">
-                                ${categories.map(cat => `
-                                    <span class="分类标签 text-xs px-2 py-1" data-category="${cat.id}">${cat.name}</span>
-                                `).join('')}
-                            </div>
-                            <h3 class="text-xl font-bold mb-2 hover:text-primary transition-all-300">${article.title}</h3>
-                            <p class="text-gray-600 mb-4 line-clamp-3">${summary}</p>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-500">${Utils.formatDate(article.date)}</span>
-                                <button class="text-primary hover:text-accent transition-all-300 查看文章按钮" data-id="${article.id}">
-                                    阅读全文 <i class="fa fa-arrow-right ml-1"></i>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    
-                    // 添加查看文章事件
-                    card.querySelector('.查看文章按钮').addEventListener('click', () => {
-                        this.showArticleDetail(article);
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'text-red-500 hover:text-red-700';
+                    deleteBtn.innerHTML = '<i class="fa fa-trash" aria-hidden="true"></i>';
+                    deleteBtn.title = '删除';
+                    deleteBtn.addEventListener('click', async () => {
+                        if (confirm(`确定要删除分类"${category.name}"吗？`)) {
+                            await this.deleteCategory(category.id);
+                        }
                     });
                     
-                    fragment.appendChild(card);
+                    actionsDiv.appendChild(editBtn);
+                    actionsDiv.appendChild(deleteBtn);
+                    categoryEl.appendChild(nameSpan);
+                    categoryEl.appendChild(actionsDiv);
+                    fragment.appendChild(categoryEl);
                 });
                 
+                Elements.categoriesList.appendChild(fragment);
+            },
+            
+            // 根据ID获取分类名称
+            getCategoryName(id) {
+                const category = State.categories.find(cat => cat.id === id);
+                return category ? category.name : '未知分类';
+            }
+        };
+
+        // 文章管理模块
+        const ArticleManager = {
+            // 加载所有文章
+            async loadArticles() {
+                try {
+                    Elements.文章加载指示器.classList.remove('hidden');
+                    Elements.文章列表.classList.add('hidden');
+                    
+                    // 获取文章目录下的所有文件
+                    const result = await GitHubAPI.getFilesList(Config.articlesDir);
+                    
+                    if (!result.success) {
+                        console.error('获取文章列表失败:', result.error);
+                        Utils.showStatusMessage('加载文章失败: ' + result.error, true);
+                        Elements.文章加载指示器.classList.add('hidden');
+                        return false;
+                    }
+                    
+                    // 过滤出Markdown文件
+                    const mdFiles = result.files.filter(file => 
+                        file.type === 'file' && file.name.endsWith('.md')
+                    );
+                    
+                    // 加载每篇文章内容
+                    const articles = [];
+                    for (const file of mdFiles) {
+                        const contentResult = await GitHubAPI.getFileContent(file.path);
+                        if (contentResult.success) {
+                            // 解析文章内容
+                            const article = this.parseArticleContent(contentResult.content, file.name, file.sha);
+                            articles.push(article);
+                        }
+                    }
+                    
+                    // 按发布日期排序（最新的在前）
+                    State.articles = articles.sort((a, b) => 
+                        new Date(b.publishedAt) - new Date(a.publishedAt)
+                    );
+                    
+                    // 渲染文章列表
+                    this.renderArticles();
+                    
+                    Elements.文章加载指示器.classList.add('hidden');
+                    Elements.文章列表.classList.remove('hidden');
+                    
+                    return true;
+                } catch (error) {
+                    console.error('加载文章时发生错误:', error);
+                    Utils.showStatusMessage('加载文章时发生错误: ' + error.message, true);
+                    Elements.文章加载指示器.classList.add('hidden');
+                    return false;
+                }
+            },
+            
+            // 解析文章内容
+            parseArticleContent(content, fileName, sha) {
+                // 从文件名提取日期（假设格式为 YYYY-MM-DD-标题.md）
+                const dateMatch = fileName.match(/^(\d{4}-\d{2}-\d{2})-/);
+                const publishedAt = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+                
+                // 解析标题和内容
+                const lines = content.split('\n');
+                let title = '无标题文章';
+                let contentLines = [];
+                let categories = [];
+                
+                // 第一行可能是分类ID（整数）
+                if (lines.length > 0 && lines[0].trim() !== '') {
+                    try {
+                        // 尝试解析第一行为分类ID列表（整数）
+                        categories = lines[0].split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+                        contentLines = lines.slice(1);
+                    } catch (e) {
+                        // 如果解析失败，将第一行视为内容
+                        contentLines = lines;
+                    }
+                } else {
+                    contentLines = lines;
+                }
+                
+                // 尝试从内容中提取标题（第一个#标题）
+                for (const line of contentLines) {
+                    const headingMatch = line.match(/^#{1,6}\s+(.*)/);
+                    if (headingMatch) {
+                        title = headingMatch[1];
+                        break;
+                    }
+                }
+                
+                // 组合内容
+                const fullContent = contentLines.join('\n');
+                
+                return {
+                    id: fileName,
+                    title,
+                    content: fullContent,
+                    publishedAt,
+                    categories,
+                    fileName,
+                    sha
+                };
+            },
+            
+            // 渲染文章列表
+            renderArticles(filteredArticles = null) {
+                const articlesToRender = filteredArticles || State.articles;
+                const fragment = Utils.createFragment();
+                
+                if (articlesToRender.length === 0) {
+                    const emptyEl = document.createElement('div');
+                    emptyEl.className = 'col-span-full text-center py-12';
+                    emptyEl.innerHTML = '<p class="text-gray-500 text-lg">暂无文章</p>';
+                    fragment.appendChild(emptyEl);
+                } else {
+                    articlesToRender.forEach(article => {
+                        const articleCard = document.createElement('div');
+                        articleCard.className = '文章-card bg-white shadow';
+                        
+                        // 生成预览HTML
+                        const previewHtml = marked.parse(article.content.substring(0, 300));
+                        const summary = Utils.getArticleSummary(previewHtml);
+                        
+                        // 生成分类标签HTML
+                        const categoryLabels = article.categories
+                            .map(catId => CategoryManager.getCategoryName(catId))
+                            .map(name => `<span class="分类标签">${name}</span>`)
+                            .join('');
+                        
+                        articleCard.innerHTML = `
+                            <div class="p-6">
+                                <div class="mb-3">${categoryLabels}</div>
+                                <h3 class="text-xl font-bold mb-2 hover:text-primary transition-all-300">${article.title}</h3>
+                                <p class="text-gray-600 text-sm mb-4">发布于: ${article.publishedAt}</p>
+                                <p class="text-gray-700 mb-4">${summary}</p>
+                                <button class="查看文章按钮 bg-primary text-white py-2 px-4 rounded hover:bg-accent transition-all-300">
+                                    阅读全文
+                                </button>
+                            </div>
+                        `;
+                        
+                        // 添加查看文章事件
+                        articleCard.querySelector('.查看文章按钮').addEventListener('click', () => {
+                            this.showArticleDetail(article);
+                        });
+                        
+                        fragment.appendChild(articleCard);
+                    });
+                }
+                
+                Elements.文章列表.innerHTML = '';
                 Elements.文章列表.appendChild(fragment);
+            },
+            
+            // 根据分类过滤文章
+            filterArticlesByCategory() {
+                if (State.selectedCategory === 'all') {
+                    this.renderArticles();
+                    return;
+                }
+                
+                const filtered = State.articles.filter(article => 
+                    article.categories && article.categories.includes(Number(State.selectedCategory))
+                );
+                this.renderArticles(filtered);
             },
             
             // 显示文章详情
             showArticleDetail(article) {
+                // 渲染文章内容
+                const categoryLabels = article.categories
+                    .map(catId => CategoryManager.getCategoryName(catId))
+                    .map(name => `<span class="分类标签">${name}</span>`)
+                    .join('');
+                
                 Elements.文章详情内容.innerHTML = `
-                    <div class="p-4">
-                        <h2 class="text-3xl font-bold mb-4">${article.title}</h2>
-                        <div class="text-gray-500 mb-6">
-                            <span>${Utils.formatDate(article.date)}</span>
-                        </div>
-                        <div class="prose max-w-none">${article.htmlContent}</div>
+                    <div class="p-6">
+                        <div class="mb-4">${categoryLabels}</div>
+                        <h1 class="text-3xl font-bold mb-6">${article.title}</h1>
+                        <p class="text-gray-600 text-sm mb-6">发布于: ${article.publishedAt}</p>
+                        <div class="prose max-w-none">${marked.parse(article.content)}</div>
                     </div>
                 `;
                 
-                this.showModal(Elements.文章详情模态框);
+                // 显示模态框
+                Elements.文章详情模态框.style.display = 'block';
+            },
+            
+            // 发布新文章
+            async publishArticle(title, content, categories) {
+                if (!title || title.trim() === '') {
+                    Utils.showStatusMessage('文章标题不能为空', true);
+                    return false;
+                }
+                
+                if (!content || content.trim() === '') {
+                    Utils.showStatusMessage('文章内容不能为空', true);
+                    return false;
+                }
+                
+                try {
+                    // 生成文件名
+                    const fileName = Utils.generateArticleFileName(title);
+                    const filePath = `${Config.articlesDir}/${fileName}`;
+                    
+                    // 构建完整内容（第一行为分类ID列表）
+                    const categoriesLine = categories.length > 0 ? categories.join(',') : '';
+                    const fullContent = `${categoriesLine}\n${content}`;
+                    
+                    // 发布文章
+                    const result = await GitHubAPI.createOrUpdateFile(
+                        filePath,
+                        fullContent,
+                        `发布新文章: ${title}`
+                    );
+                    
+                    if (result.success) {
+                        Utils.showStatusMessage('文章发布成功');
+                        
+                        // 重新加载文章列表
+                        await this.loadArticles();
+                        
+                        // 清空编辑器
+                        Elements.articleTitleInput.value = '';
+                        Elements.articleEditor.value = '';
+                        Elements.previewContainer.innerHTML = '<p class="text-gray-500 italic">预览将显示在这里...</p>';
+                        
+                        // 取消分类选择
+                        document.querySelectorAll('#category-selector input[type="checkbox"]')
+                            .forEach(checkbox => checkbox.checked = false);
+                        
+                        return true;
+                    } else {
+                        Utils.showStatusMessage('文章发布失败: ' + result.error, true);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('发布文章时发生错误:', error);
+                    Utils.showStatusMessage('发布文章时发生错误: ' + error.message, true);
+                    return false;
+                }
+            },
+            
+            // 更新文章
+            async updateArticle(article) {
+                try {
+                    const filePath = `${Config.articlesDir}/${article.fileName}`;
+                    
+                    // 构建完整内容（第一行为分类ID列表）
+                    const categoriesLine = article.categories.length > 0 ? article.categories.join(',') : '';
+                    const fullContent = `${categoriesLine}\n${article.content}`;
+                    
+                    // 更新文章
+                    const result = await GitHubAPI.createOrUpdateFile(
+                        filePath,
+                        fullContent,
+                        `更新文章: ${article.title}`,
+                        article.sha
+                    );
+                    
+                    if (result.success) {
+                        // 更新成功后更新sha
+                        article.sha = result.result.content.sha;
+                        return true;
+                    } else {
+                        console.error('更新文章失败:', result.error);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('更新文章时发生错误:', error);
+                    return false;
+                }
+            },
+            
+            // 删除文章
+            async deleteArticle(fileName, sha) {
+                try {
+                    const filePath = `${Config.articlesDir}/${fileName}`;
+                    
+                    const result = await GitHubAPI.deleteFile(
+                        filePath,
+                        sha,
+                        `删除文章: ${fileName}`
+                    );
+                    
+                    if (result.success) {
+                        Utils.showStatusMessage('文章删除成功');
+                        // 重新加载文章列表
+                        await this.loadArticles();
+                        this.renderArticleManagementTable();
+                        return true;
+                    } else {
+                        Utils.showStatusMessage('文章删除失败: ' + result.error, true);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('删除文章时发生错误:', error);
+                    Utils.showStatusMessage('删除文章时发生错误: ' + error.message, true);
+                    return false;
+                }
+            },
+            
+            // 渲染文章管理表格
+            renderArticleManagementTable() {
+                const tbody = Elements.articlesTable.querySelector('tbody');
+                tbody.innerHTML = '';
+                
+                if (State.articles.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="4" class="py-4 px-4 text-center text-gray-500">暂无文章</td>';
+                    tbody.appendChild(row);
+                    return;
+                }
+                
+                State.articles.forEach(article => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50';
+                    
+                    // 生成分类标签
+                    const categoryNames = article.categories
+                        .map(catId => CategoryManager.getCategoryName(catId))
+                        .join(', ');
+                    
+                    row.innerHTML = `
+                        <td class="py-3 px-4">${article.title}</td>
+                        <td class="py-3 px-4">${article.publishedAt}</td>
+                        <td class="py-3 px-4">${categoryNames || '无分类'}</td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex justify-center gap-2">
+                                <button class="编辑文章按钮 text-blue-500 hover:text-blue-700" data-file="${article.fileName}">
+                                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                                </button>
+                                <button class="删除文章按钮 text-red-500 hover:text-red-700" data-file="${article.fileName}" data-sha="${article.sha}">
+                                    <i class="fa fa-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    // 添加编辑事件
+                    row.querySelector('.编辑文章按钮').addEventListener('click', () => {
+                        // 切换到编辑文章区域
+                        Elements.adminMenuItems.forEach(item => item.classList.remove('active'));
+                        Elements.adminSections.forEach(section => section.classList.remove('active'));
+                        document.querySelector('[data-section="write-article"]').classList.add('active');
+                        document.getElementById('write-article').classList.add('active');
+                        
+                        // 填充表单
+                        Elements.articleTitleInput.value = article.title;
+                        Elements.articleEditor.value = article.content;
+                        Elements.previewContainer.innerHTML = marked.parse(article.content);
+                        
+                        // 选中分类
+                        document.querySelectorAll('#category-selector input[type="checkbox"]')
+                            .forEach(checkbox => {
+                                checkbox.checked = article.categories.includes(Number(checkbox.value));
+                            });
+                    });
+                    
+                    // 添加删除事件
+                    row.querySelector('.删除文章按钮').addEventListener('click', async (e) => {
+                        if (confirm('确定要删除这篇文章吗？')) {
+                            const fileName = e.currentTarget.dataset.file;
+                            const sha = e.currentTarget.dataset.sha;
+                            await this.deleteArticle(fileName, sha);
+                        }
+                    });
+                    
+                    tbody.appendChild(row);
+                });
+            }
+        };
+
+        // 日历模块
+        const Calendar = {
+            // 初始化日历
+            init() {
+                this.renderCalendar(State.currentDate);
+                this.updateCurrentTime();
+                setInterval(() => this.updateCurrentTime(), 60000); // 每分钟更新一次时间
+            },
+            
+            // 更新当前时间显示
+            updateCurrentTime() {
+                const now = new Date();
+                Elements.当前时间显示.textContent = now.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'long',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
             },
             
             // 渲染日历
-            renderCalendar() {
-                const year = State.currentDate.getFullYear();
-                const month = State.currentDate.getMonth();
+            renderCalendar(date) {
+                const year = date.getFullYear();
+                const month = date.getMonth();
                 
-                // 更新标题
-                Elements.当前年月显示.textContent = `${year}年${month + 1}月`;
-                Elements.当前时间显示.textContent = `今天是 ${Utils.formatDate(new Date())}`;
+                // 更新标题显示
+                Elements.当前年月显示.textContent = `${year}年 ${month + 1}月`;
+                
+                // 获取当月第一天是星期几
+                const firstDay = new Date(year, month, 1).getDay();
+                
+                // 获取当月的天数
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                // 获取上个月的最后几天
+                const prevMonthDays = firstDay;
+                const prevMonth = month === 0 ? 11 : month - 1;
+                const prevMonthYear = month === 0 ? year - 1 : year;
+                const daysInPrevMonth = new Date(prevMonthYear, prevMonth + 1, 0).getDate();
+                
+                // 计算需要显示的下个月的天数
+                const totalDaysToShow = prevMonthDays + daysInMonth;
+                const nextMonthDays = totalDaysToShow % 7 === 0 ? 0 : 7 - (totalDaysToShow % 7);
                 
                 // 清空日历网格
                 Elements.日历网格.innerHTML = '';
@@ -1236,284 +1659,119 @@
                 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
                 weekdays.forEach(day => {
                     const dayEl = document.createElement('div');
-                    dayEl.className = 'font-bold py-2';
+                    dayEl.className = 'font-bold p-2';
                     dayEl.textContent = day;
                     Elements.日历网格.appendChild(dayEl);
                 });
                 
-                // 获取当月第一天是星期几
-                const firstDay = new Date(year, month, 1).getDay();
-                
-                // 获取当月的天数
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                
-                // 添加空白单元格
-                for (let i = 0; i < firstDay; i++) {
-                    const emptyDay = document.createElement('div');
-                    emptyDay.className = 'py-3';
-                    Elements.日历网格.appendChild(emptyDay);
+                // 添加上个月的日期
+                for (let i = 0; i < prevMonthDays; i++) {
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'p-2 text-gray-400';
+                    dayEl.textContent = daysInPrevMonth - prevMonthDays + i + 1;
+                    Elements.日历网格.appendChild(dayEl);
                 }
                 
-                // 添加日期单元格
+                // 添加当前月的日期
                 const today = new Date();
                 const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
                 
-                for (let day = 1; day <= daysInMonth; day++) {
+                for (let i = 1; i <= daysInMonth; i++) {
                     const dayEl = document.createElement('div');
-                    dayEl.className = `py-3 rounded-full cursor-pointer hover:bg-gray-100 transition-all-300 ${
-                        isCurrentMonth && day === today.getDate() ? '今日日期标记 font-bold' : ''
-                    }`;
-                    dayEl.textContent = day;
+                    dayEl.className = 'p-2 border rounded cursor-pointer hover:bg-gray-100 transition-all-300';
+                    
+                    // 标记今天
+                    if (isCurrentMonth && today.getDate() === i) {
+                        dayEl.classList.add('今日日期标记', 'font-bold');
+                    }
+                    
+                    dayEl.textContent = i;
                     
                     // 检查该日期是否有文章
-                    const hasArticles = State.articles.some(article => {
-                        const articleDate = new Date(article.date);
-                        return articleDate.getFullYear() === year && 
-                               articleDate.getMonth() === month && 
-                               articleDate.getDate() === day;
-                    });
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                    const hasArticles = State.articles.some(article => article.publishedAt === dateStr);
                     
                     if (hasArticles) {
-                        dayEl.classList.add('text-primary', 'font-medium');
-                        dayEl.title = '有文章发布';
+                        dayEl.classList.add('bg-secondary/20');
+                        dayEl.addEventListener('click', () => {
+                            this.showArticlesForDate(dateStr);
+                        });
                     }
                     
                     Elements.日历网格.appendChild(dayEl);
                 }
                 
-                // 随机显示一句哲言
-                this.renderRandomPhilosophicalQuote();
+                // 添加下个月的日期
+                for (let i = 1; i <= nextMonthDays; i++) {
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'p-2 text-gray-400';
+                    dayEl.textContent = i;
+                    Elements.日历网格.appendChild(dayEl);
+                }
+                
+                // 显示随机哲言
+                this.showRandomPhilosophicalQuote();
             },
             
-            // 渲染随机哲言
-            renderRandomPhilosophicalQuote() {
+            // 显示指定日期的文章
+            showArticlesForDate(dateStr) {
+                const articlesOnDate = State.articles.filter(article => article.publishedAt === dateStr);
+                
+                if (articlesOnDate.length === 0) {
+                    Utils.showStatusMessage(`该日期(${dateStr})没有文章`, true);
+                    return;
+                }
+                
+                // 关闭日历模态框
+                Elements.日历模态框.style.display = 'none';
+                
+                // 过滤并显示文章
+                State.selectedCategory = 'all';
+                document.querySelectorAll('.分类标签').forEach(el => el.classList.remove('active'));
+                document.querySelector('[data-category="all"]').classList.add('active');
+                
+                ArticleManager.renderArticles(articlesOnDate);
+            },
+            
+            // 显示随机哲言
+            showRandomPhilosophicalQuote() {
                 const randomIndex = Math.floor(Math.random() * State.philosophicalQuotes.length);
                 const quote = State.philosophicalQuotes[randomIndex];
-                
-                Elements.哲言区域.innerHTML = `
-                    <p>"${quote.quote}"</p>
-                    <p class="mt-2 text-right">— ${quote.author}</p>
-                `;
+                Elements.哲言区域.innerHTML = `"${quote.quote}" —— ${quote.author}`;
             },
             
-            // 渲染管理界面中的分类选择器
-            renderCategorySelector() {
-                Elements.categorySelector.innerHTML = '';
-                const fragment = Utils.createFragment();
-                
-                State.categories.forEach(category => {
-                    const checkbox = document.createElement('label');
-                    checkbox.className = 'inline-flex items-center p-2 border rounded cursor-pointer hover:border-primary transition-all-300';
-                    checkbox.innerHTML = `
-                        <input type="checkbox" class="mr-2 category-checkbox" data-id="${category.id}">
-                        ${category.name}
-                    `;
-                    fragment.appendChild(checkbox);
-                });
-                
-                Elements.categorySelector.appendChild(fragment);
+            // 切换到上一个月
+            prevMonth() {
+                State.currentDate.setMonth(State.currentDate.getMonth() - 1);
+                this.renderCalendar(State.currentDate);
             },
             
-            // 渲染文章管理表格
-            renderArticlesTable() {
-                const tbody = Elements.articlesTable.querySelector('tbody');
-                tbody.innerHTML = '';
-                
-                if (State.articles.length === 0) {
-                    const row = document.createElement('tr');
-                    row.innerHTML = '<td colspan="4" class="py-4 text-center text-gray-500">暂无文章</td>';
-                    tbody.appendChild(row);
-                    return;
-                }
-                
-                State.articles.forEach(article => {
-                    // 查找文章关联的分类
-                    const categories = [];
-                    State.categories.forEach(category => {
-                        if (article.content.includes(category.id)) {
-                            categories.push(category.name);
-                        }
-                    });
-                    
-                    const row = document.createElement('tr');
-                    row.className = 'border-b hover:bg-gray-50 transition-all-300';
-                    row.innerHTML = `
-                        <td class="py-3 px-4">${article.title}</td>
-                        <td class="py-3 px-4">${Utils.formatDate(article.date)}</td>
-                        <td class="py-3 px-4">${categories.length > 0 ? categories.join(', ') : '无分类'}</td>
-                        <td class="py-3 px-4 text-center">
-                            <button class="text-primary hover:text-accent mr-3 编辑文章按钮" data-id="${article.id}">
-                                <i class="fa fa-pencil" aria-hidden="true"></i>
-                            </button>
-                            <button class="text-red-500 hover:text-red-700 删除文章按钮" data-id="${article.id}">
-                                <i class="fa fa-trash" aria-hidden="true"></i>
-                            </button>
-                        </td>
-                    `;
-                    
-                    // 编辑按钮事件
-                    row.querySelector('.编辑文章按钮').addEventListener('click', () => {
-                        this.loadArticleForEditing(article);
-                        // 切换到撰写文章标签
-                        Elements.adminMenuItems.forEach(item => item.classList.remove('active'));
-                        Elements.adminSections.forEach(section => section.classList.remove('active'));
-                        document.querySelector('[data-section="write-article"]').classList.add('active');
-                        document.getElementById('write-article').classList.add('active');
-                    });
-                    
-                    // 删除按钮事件
-                    row.querySelector('.删除文章按钮').addEventListener('click', async () => {
-                        if (confirm(`确定要删除文章《${article.title}》吗？`)) {
-                            const success = await Data.deleteArticle(article);
-                            if (success) {
-                                Utils.showStatusMessage('文章已成功删除');
-                                await Data.syncAllData();
-                                this.renderArticlesTable();
-                                this.renderArticles();
-                            } else {
-                                Utils.showStatusMessage('删除文章失败', true);
-                            }
-                        }
-                    });
-                    
-                    tbody.appendChild(row);
-                });
-            },
-            
-            // 加载文章用于编辑
-            loadArticleForEditing(article) {
-                Elements.articleTitleInput.value = article.title;
-                Elements.articleEditor.value = article.content;
-                this.updatePreview();
-                
-                // 选中对应的分类
-                document.querySelectorAll('.category-checkbox').forEach(checkbox => {
-                    checkbox.checked = article.content.includes(checkbox.dataset.id);
-                });
-            },
-            
-            // 渲染分类管理列表
-            renderCategoriesList() {
-                Elements.categoriesList.innerHTML = '';
-                
-                if (State.categories.length === 0) {
-                    Elements.categoriesList.innerHTML = '<p class="text-gray-500 italic">暂无分类，请添加分类</p>';
-                    return;
-                }
-                
-                State.categories.forEach(category => {
-                    const item = document.createElement('div');
-                    item.className = 'flex justify-between items-center p-3 bg-white border rounded';
-                    item.innerHTML = `
-                        <div>
-                            <div class="font-medium">${category.name}</div>
-                            <div class="text-sm text-gray-500">ID: ${category.id}</div>
-                        </div>
-                        <button class="text-red-500 hover:text-red-700 删除分类按钮" data-id="${category.id}">
-                            <i class="fa fa-trash" aria-hidden="true"></i>
-                        </button>
-                    `;
-                    
-                    // 删除分类事件
-                    item.querySelector('.删除分类按钮').addEventListener('click', async () => {
-                        if (confirm(`确定要删除分类"${category.name}"吗？`)) {
-                            State.categories = State.categories.filter(c => c.id !== category.id);
-                            const success = await Data.saveCategories();
-                            
-                            if (success) {
-                                Utils.showStatusMessage('分类已成功删除');
-                                this.renderCategoriesList();
-                                this.renderCategories();
-                                this.renderCategorySelector();
-                            } else {
-                                Utils.showStatusMessage('删除分类失败', true);
-                            }
-                        }
-                    });
-                    
-                    Elements.categoriesList.appendChild(item);
-                });
-            },
-            
-            // 渲染仓库列表
-            renderRepoList(repos) {
-                Elements.repoList.innerHTML = '';
-                const fragment = Utils.createFragment();
-                
-                // 按名称排序，优先显示包含philosophy或blog的仓库
-                repos.sort((a, b) => {
-                    const aIsBlog = a.name.includes('philosophy') || a.name.includes('blog');
-                    const bIsBlog = b.name.includes('philosophy') || b.name.includes('blog');
-                    
-                    if (aIsBlog && !bIsBlog) return -1;
-                    if (!aIsBlog && bIsBlog) return 1;
-                    return a.name.localeCompare(b.name);
-                });
-                
-                repos.forEach(repo => {
-                    const item = document.createElement('div');
-                    item.className = `repo-item ${State.selectedRepo === repo.full_name ? 'selected' : ''}`;
-                    item.dataset.fullName = repo.full_name;
-                    item.dataset.owner = repo.owner.login;
-                    item.dataset.name = repo.name;
-                    
-                    // 标记推荐的仓库
-                    const isRecommended = repo.name.includes('philosophy') || repo.name.includes('blog');
-                    
-                    item.innerHTML = `
-                        <div class="font-medium">${repo.name}</div>
-                        <div class="text-sm text-gray-500">${repo.full_name}</div>
-                        ${isRecommended ? '<div class="text-xs mt-1 text-green-600">推荐</div>' : ''}
-                    `;
-                    
-                    item.addEventListener('click', () => {
-                        document.querySelectorAll('.repo-item').forEach(i => i.classList.remove('selected'));
-                        item.classList.add('selected');
-                        State.selectedRepo = repo.full_name;
-                        Elements.confirmRepoBtn.disabled = false;
-                    });
-                    
-                    fragment.appendChild(item);
-                });
-                
-                Elements.repoList.appendChild(fragment);
-            },
-            
-            // 更新预览
-            updatePreview() {
-                const content = Elements.articleEditor.value;
-                Elements.previewContainer.innerHTML = marked.parse(content) || 
-                                                     '<p class="text-gray-500 italic">预览将显示在这里...</p>';
-            },
-            
-            // 显示模态框
-            showModal(modal) {
-                modal.style.display = 'block';
-                document.body.style.overflow = 'hidden'; // 防止背景滚动
-            },
-            
-            // 隐藏所有模态框
-            hideAllModals() {
-                Elements.modals.forEach(modal => {
-                    modal.style.display = 'none';
-                });
-                document.body.style.overflow = ''; // 恢复滚动
-            },
-            
-            // 显示管理界面
-            async showAdminInterface() {
+            // 切换到下一个月
+            nextMonth() {
+                State.currentDate.setMonth(State.currentDate.getMonth() + 1);
+                this.renderCalendar(State.currentDate);
+            }
+        };
+
+        // 管理后台模块
+        const AdminPanel = {
+            // 初始化管理后台
+            async init() {
                 // 显示加载状态
                 Elements.adminLoading.classList.remove('hidden');
                 Elements.adminContentContainer.classList.add('hidden');
                 
-                // 同步数据
-                const success = await Data.syncAllData();
-                
-                if (success) {
-                    // 渲染管理界面内容
-                    this.renderCategorySelector();
-                    this.renderArticlesTable();
-                    this.renderCategoriesList();
+                try {
+                    // 加载分类和文章数据
+                    await Promise.all([
+                        CategoryManager.loadCategories(),
+                        ArticleManager.loadArticles()
+                    ]);
+                    
+                    // 渲染管理界面
+                    CategoryManager.renderCategorySelector();
+                    CategoryManager.renderCategoryManagementList();
+                    ArticleManager.renderArticleManagementTable();
                     
                     // 更新当前仓库信息
                     Elements.currentRepoInfo.textContent = `${State.githubOwner}/${State.githubRepo}`;
@@ -1521,412 +1779,370 @@
                     // 隐藏加载状态，显示内容
                     Elements.adminLoading.classList.add('hidden');
                     Elements.adminContentContainer.classList.remove('hidden');
-                } else {
-                    Utils.showStatusMessage('加载管理界面失败', true);
+                    
+                    return true;
+                } catch (error) {
+                    console.error('初始化管理后台失败:', error);
+                    Utils.showStatusMessage('加载管理界面失败: ' + error.message, true);
+                    return false;
                 }
+            },
+            
+            // 切换管理菜单
+            switchMenu(sectionId) {
+                // 更新菜单选中状态
+                Elements.adminMenuItems.forEach(item => {
+                    item.classList.toggle('active', item.dataset.section === sectionId);
+                });
                 
-                this.showModal(Elements.后台管理模态框);
+                // 更新内容显示
+                Elements.adminSections.forEach(section => {
+                    section.classList.toggle('active', section.id === sectionId);
+                });
+            },
+            
+            // 退出登录
+            logout() {
+                if (confirm('确定要退出登录吗？')) {
+                    localStorage.removeItem('githubToken');
+                    State.githubToken = null;
+                    State.isAuthenticated = false;
+                    
+                    // 关闭管理模态框
+                    Elements.后台管理模态框.style.display = 'none';
+                    
+                    Utils.showStatusMessage('已退出登录');
+                }
             }
         };
 
-        // 事件处理模块
-        const Events = {
-            // 初始化所有事件监听
+        // 编辑器模块
+        const Editor = {
+            // 初始化编辑器
             init() {
-                this.initModalEvents();
-                this.initCalendarEvents();
-                this.initAdminEvents();
-                this.initEditorEvents();
-                this.initRepoEvents();
-                this.initAuthEvents();
-                View.initCategoryEvents();
-            },
-            
-            // 初始化模态框事件
-            initModalEvents() {
-                // 关闭按钮事件
-                Elements.closeButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        View.hideAllModals();
-                    });
-                });
-                
-                // 点击模态框外部关闭
-                Elements.modals.forEach(modal => {
-                    modal.addEventListener('click', (e) => {
-                        if (e.target === modal) {
-                            View.hideAllModals();
-                        }
-                    });
-                });
-                
-                // 日历按钮事件
-                Elements.日历按钮.addEventListener('click', () => {
-                    View.renderCalendar();
-                    View.showModal(Elements.日历模态框);
-                });
-                
-                // 尘幕工作室按钮事件 - 点击时需要验证
-                Elements.尘幕工作室按钮.addEventListener('click', async () => {
-                    if (State.isAuthenticated) {
-                        // 已认证，显示管理界面
-                        await View.showAdminInterface();
-                    } else {
-                        // 未认证，显示认证模态框
-                        View.showModal(Elements.github验证模态框);
-                    }
-                });
-            },
-            
-            // 初始化日历事件
-            initCalendarEvents() {
-                // 上一月按钮
-                Elements.上一月按钮.addEventListener('click', () => {
-                    State.currentDate.setMonth(State.currentDate.getMonth() - 1);
-                    View.renderCalendar();
-                });
-                
-                // 下一月按钮
-                Elements.下一月按钮.addEventListener('click', () => {
-                    State.currentDate.setMonth(State.currentDate.getMonth() + 1);
-                    View.renderCalendar();
-                });
-            },
-            
-            // 初始化管理界面事件
-            initAdminEvents() {
-                // 管理菜单切换
-                Elements.adminMenuItems.forEach(item => {
-                    if (!item.id) { // 跳过有ID的特殊项
-                        item.addEventListener('click', () => {
-                            const sectionId = item.dataset.section;
-                            
-                            // 更新菜单选中状态
-                            Elements.adminMenuItems.forEach(i => i.classList.remove('active'));
-                            item.classList.add('active');
-                            
-                            // 更新显示的区域
-                            Elements.adminSections.forEach(section => {
-                                section.classList.remove('active');
-                            });
-                            document.getElementById(sectionId).classList.add('active');
-                        });
-                    }
-                });
-                
-                // 发布文章按钮
-                Elements.发布文章按钮.addEventListener('click', async () => {
-                    const title = Elements.articleTitleInput.value.trim();
-                    let content = Elements.articleEditor.value.trim();
-                    
-                    if (!title) {
-                        return Utils.showStatusMessage('请输入文章标题', true);
-                    }
-                    
-                    if (!content) {
-                        return Utils.showStatusMessage('请输入文章内容', true);
-                    }
-                    
-                    // 在内容开头添加选中的分类ID
-                    const selectedCategories = [];
-                    document.querySelectorAll('.category-checkbox:checked').forEach(checkbox => {
-                        selectedCategories.push(checkbox.dataset.id);
-                    });
-                    
-                    if (selectedCategories.length > 0) {
-                        content = selectedCategories.join(',') + '\n\n' + content;
-                    }
-                    
-                    // 添加标题到内容开头
-                    content = title + '\n\n' + content;
-                    
-                    const success = await Data.publishArticle(title, content);
-                    
-                    if (success) {
-                        Utils.showStatusMessage('文章发布成功');
-                        // 清空表单
-                        Elements.articleTitleInput.value = '';
-                        Elements.articleEditor.value = '';
-                        document.querySelectorAll('.category-checkbox').forEach(checkbox => {
-                            checkbox.checked = false;
-                        });
-                        View.updatePreview();
-                        
-                        // 刷新文章列表
-                        await Data.syncAllData();
-                        View.renderArticles();
-                        View.renderArticlesTable();
-                    } else {
-                        Utils.showStatusMessage('文章发布失败', true);
-                    }
-                });
-                
-                // 添加分类按钮
-                Elements.addCategoryBtn.addEventListener('click', async () => {
-                    const name = Elements.newCategoryName.value.trim();
-                    
-                    if (!name) {
-                        return Utils.showStatusMessage('请输入分类名称', true);
-                    }
-                    
-                    // 生成唯一ID
-                    const id = 'cat_' + Date.now();
-                    
-                    // 添加到分类列表
-                    State.categories.push({ id, name });
-                    
-                    // 保存分类
-                    const success = await Data.saveCategories();
-                    
-                    if (success) {
-                        Utils.showStatusMessage('分类添加成功');
-                        Elements.newCategoryName.value = '';
-                        View.renderCategoriesList();
-                        View.renderCategories();
-                        View.renderCategorySelector();
-                    } else {
-                        Utils.showStatusMessage('分类添加失败', true);
-                        // 回滚
-                        State.categories.pop();
-                    }
-                });
-                
-                // 退出登录按钮
-                Elements.退出登录按钮.addEventListener('click', () => {
-                    if (confirm('确定要退出登录吗？')) {
-                        localStorage.removeItem('githubToken');
-                        State.githubToken = null;
-                        State.isAuthenticated = false;
-                        View.hideAllModals();
-                        Utils.showStatusMessage('已退出登录');
-                    }
-                });
-                
-                // 切换仓库按钮
-                Elements.切换仓库按钮.addEventListener('click', () => {
-                    View.hideAllModals();
-                    this.showRepoSelection();
-                });
-            },
-            
-            // 初始化编辑器事件
-            initEditorEvents() {
-                // 编辑器内容变化时更新预览
-                Elements.articleEditor.addEventListener('input', () => {
-                    View.updatePreview();
-                });
-                
-                // 编辑器工具栏按钮
+                // 为编辑器按钮添加事件
                 Elements.editorButtons.forEach(button => {
                     button.addEventListener('click', () => {
                         const command = button.dataset.command;
-                        const editor = Elements.articleEditor;
-                        const start = editor.selectionStart;
-                        const end = editor.selectionEnd;
-                        const selectedText = editor.value.substring(start, end);
-                        
-                        switch (command) {
-                            case 'bold':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `**${selectedText || '加粗文本'}**` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'italic':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `*${selectedText || '斜体文本'}*` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'heading':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `# ${selectedText || '标题'}` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'list':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `- ${selectedText || '列表项1'}\n- 列表项2` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'link':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `[${selectedText || '链接文本'}](https://example.com)` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'image':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `![${selectedText || '图片描述'}](https://example.com/image.jpg)` + 
-                                    editor.value.substring(end);
-                                break;
-                            case 'code':
-                                editor.value = 
-                                    editor.value.substring(0, start) + 
-                                    `\`\`\`\n${selectedText || '代码块'}\n\`\`\`` + 
-                                    editor.value.substring(end);
-                                break;
-                        }
-                        
-                        // 更新光标位置
-                        const newCursorPos = start + (selectedText ? end - start : command === 'code' ? 10 : 4);
-                        editor.focus();
-                        editor.setSelectionRange(newCursorPos, newCursorPos);
-                        
-                        // 更新预览
-                        View.updatePreview();
+                        this.executeCommand(command);
                     });
                 });
-            },
-            
-            // 初始化仓库相关事件
-            initRepoEvents() {
-                // 仓库选择确认按钮
-                Elements.confirmRepoBtn.addEventListener('click', () => {
-                    if (State.selectedRepo) {
-                        const selectedRepo = document.querySelector(`.repo-item[data-full-name="${State.selectedRepo}"]`);
-                        if (selectedRepo) {
-                            const owner = selectedRepo.dataset.owner;
-                            const repo = selectedRepo.dataset.name;
-                            
-                            // 保存仓库信息
-                            Utils.saveRepoInfo(owner, repo);
-                            
-                            // 关闭模态框并显示管理界面
-                            View.hideAllModals();
-                            View.showAdminInterface();
-                            
-                            Utils.showStatusMessage(`已选择仓库: ${owner}/${repo}`);
-                        }
-                    }
-                });
                 
-                // 前往认证按钮
-                Elements.goToAuthBtn.addEventListener('click', () => {
-                    View.hideAllModals();
-                    View.showModal(Elements.github验证模态框);
+                // 实时预览
+                Elements.articleEditor.addEventListener('input', () => {
+                    this.updatePreview();
                 });
             },
             
-            // 初始化认证相关事件
-            initAuthEvents() {
-                // 验证按钮
-                Elements.验证按钮.addEventListener('click', async () => {
-                    const token = Elements.githubTokenInput.value.trim();
-                    
-                    if (!token) {
-                        return Utils.showErrorLog(Elements.验证错误日志, '请输入GitHub令牌');
-                    }
-                    
-                    // 显示验证状态
-                    Elements.验证状态.textContent = '验证中...';
-                    Elements.验证状态.className = 'mt-3 text-center';
-                    Elements.验证状态.classList.remove('hidden', 'text-green-600', 'text-red-600');
-                    
-                    // 测试令牌
-                    State.githubToken = token;
-                    const isValid = await GitHubAPI.testToken();
-                    
-                    if (isValid) {
-                        // 验证成功
-                        Elements.验证状态.textContent = '验证成功！';
-                        Elements.验证状态.classList.add('text-green-600');
-                        
-                        // 保存令牌
-                        localStorage.setItem('githubToken', token);
-                        State.isAuthenticated = true;
-                        
-                        // 获取用户信息
-                        const userInfo = await GitHubAPI.getUserInfo();
-                        if (userInfo) {
-                            State.githubOwner = userInfo.login;
-                        }
-                        
-                        // 延迟后关闭模态框并显示仓库选择
-                        setTimeout(() => {
-                            View.hideAllModals();
-                            this.showRepoSelection();
-                            Elements.githubTokenInput.value = '';
-                            Utils.hideErrorLog(Elements.验证错误日志);
-                        }, 1000);
-                    } else {
-                        // 验证失败
-                        Elements.验证状态.textContent = '验证失败，请检查令牌是否正确';
-                        Elements.验证状态.classList.add('text-red-600');
-                        Utils.showErrorLog(Elements.验证错误日志, '令牌无效或没有足够的权限');
-                        
-                        // 清除状态
-                        State.githubToken = null;
-                        State.isAuthenticated = false;
-                    }
-                });
-            },
-            
-            // 显示仓库选择界面
-            async showRepoSelection() {
-                if (!State.isAuthenticated) {
-                    View.showModal(Elements.github验证模态框);
-                    return;
+            // 执行编辑命令
+            executeCommand(command) {
+                const editor = Elements.articleEditor;
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const selectedText = editor.value.substring(start, end);
+                
+                let resultText = '';
+                let cursorOffset = 0;
+                
+                switch (command) {
+                    case 'bold':
+                        resultText = `**${selectedText || '粗体文本'}**`;
+                        cursorOffset = selectedText ? 0 : 6; // 如果没有选中文本，光标放在中间
+                        break;
+                    case 'italic':
+                        resultText = `*${selectedText || '斜体文本'}*`;
+                        cursorOffset = selectedText ? 0 : 4;
+                        break;
+                    case 'heading':
+                        resultText = `# ${selectedText || '标题'}`;
+                        cursorOffset = selectedText ? 0 : 3;
+                        break;
+                    case 'list':
+                        resultText = `- ${selectedText || '列表项'}`;
+                        cursorOffset = selectedText ? 0 : 3;
+                        break;
+                    case 'link':
+                        resultText = `[${selectedText || '链接文本'}](https://example.com)`;
+                        cursorOffset = selectedText ? 0 : selectedText ? 0 : 13;
+                        break;
+                    case 'image':
+                        resultText = `![${selectedText || '图片描述'}](https://example.com/image.jpg)`;
+                        cursorOffset = selectedText ? 0 : 20;
+                        break;
+                    case 'code':
+                        resultText = `\`\`\`\n${selectedText || '代码'}\n\`\`\``;
+                        cursorOffset = selectedText ? 0 : 4;
+                        break;
                 }
                 
-                // 显示加载状态
-                Elements.repoLoading.classList.remove('hidden');
-                Elements.repoListContainer.classList.add('hidden');
-                Elements.confirmRepoBtn.disabled = true;
-                State.selectedRepo = null;
+                // 替换选中内容
+                editor.value = 
+                    editor.value.substring(0, start) + 
+                    resultText + 
+                    editor.value.substring(end);
                 
-                // 显示模态框
-                View.showModal(Elements.repoSelectModal);
+                // 设置光标位置
+                const newCursorPos = start + (selectedText ? resultText.length : cursorOffset);
+                editor.focus();
+                editor.setSelectionRange(newCursorPos, newCursorPos);
                 
-                // 加载仓库列表
-                const result = await GitHubAPI.getUserRepos();
-                
-                if (result.success) {
-                    // 渲染仓库列表
-                    View.renderRepoList(result.repos);
-                    
-                    // 隐藏加载状态，显示列表
-                    Elements.repoLoading.classList.add('hidden');
-                    Elements.repoListContainer.classList.remove('hidden');
-                    
-                    // 如果有当前仓库，尝试选中它
-                    if (State.githubOwner && State.githubRepo) {
-                        const fullName = `${State.githubOwner}/${State.githubRepo}`;
-                        const repoItem = document.querySelector(`.repo-item[data-full-name="${fullName}"]`);
-                        if (repoItem) {
-                            repoItem.click();
-                        }
-                    }
-                } else {
-                    // 显示错误
-                    Elements.repoLoading.classList.add('hidden');
-                    Utils.showErrorLog(Elements.repoSelectError, `加载仓库失败: ${result.error}`);
-                }
+                // 更新预览
+                this.updatePreview();
+            },
+            
+            // 更新预览
+            updatePreview() {
+                const content = Elements.articleEditor.value;
+                Elements.previewContainer.innerHTML = content ? marked.parse(content) : 
+                    '<p class="text-gray-500 italic">预览将显示在这里...</p>';
             }
         };
 
         // 初始化应用
         async function initApp() {
-            // 强制设置为指定仓库
-            State.githubOwner = '7534tafuya1314';
-            State.githubRepo = '7534tafuya1314.github.io';
+            // 加载分类和文章
+            await Promise.all([
+                CategoryManager.loadCategories(),
+                ArticleManager.loadArticles()
+            ]);
             
-            // 加载文章和分类（无需认证）
-            await Data.syncAllData();
-            View.renderCategories();
-            View.renderArticles();
+            // 渲染分类
+            CategoryManager.renderCategories();
             
-            // 初始化事件
-            Events.init();
+            // 初始化日历
+            Calendar.init();
+            
+            // 初始化编辑器
+            Editor.init();
+            
+            // 设置事件监听器
+            setupEventListeners();
             
             // 设置自动同步
             setInterval(async () => {
-                await Data.syncAllData();
-                View.renderCategories();
-                View.renderArticles();
+                if (new Date() - (State.lastSyncTime || 0) > Config.syncInterval) {
+                    console.log('自动同步数据...');
+                    State.lastSyncTime = new Date();
+                    await Promise.all([
+                        CategoryManager.loadCategories(),
+                        ArticleManager.loadArticles()
+                    ]);
+                    CategoryManager.renderCategories();
+                }
             }, Config.syncInterval);
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 关闭模态框按钮
+            Elements.closeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const modal = button.closest('.modal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+            
+            // 点击模态框外部关闭
+            Elements.modals.forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+            
+            // 日历按钮
+            Elements.日历按钮.addEventListener('click', () => {
+                Elements.日历模态框.style.display = 'block';
+            });
+            
+            // 日历月份切换
+            Elements.上一月按钮.addEventListener('click', () => Calendar.prevMonth());
+            Elements.下一月按钮.addEventListener('click', () => Calendar.nextMonth());
+            
+            // 尘幕工作室按钮（管理后台）
+            Elements.尘幕工作室按钮.addEventListener('click', async () => {
+                if (State.isAuthenticated) {
+                    // 已登录，直接显示管理后台
+                    Elements.后台管理模态框.style.display = 'block';
+                    await AdminPanel.init();
+                } else {
+                    // 未登录，显示验证模态框
+                    Elements.github验证模态框.style.display = 'block';
+                }
+            });
+            
+            // GitHub验证按钮
+            Elements.验证按钮.addEventListener('click', async () => {
+                const token = Elements.githubTokenInput.value.trim();
+                
+                if (!token) {
+                    Utils.showErrorLog(Elements.验证错误日志, '请输入GitHub令牌');
+                    return;
+                }
+                
+                // 显示验证状态
+                Elements.验证状态.textContent = '正在验证...';
+                Elements.验证状态.className = 'mt-3 text-center';
+                Elements.验证状态.classList.remove('hidden', 'text-green-500', 'text-red-500');
+                
+                try {
+                    // 临时保存令牌用于验证
+                    State.githubToken = token;
+                    
+                    // 测试令牌有效性
+                    const isValid = await GitHubAPI.testToken();
+                    
+                    if (isValid) {
+                        // 验证成功
+                        Elements.验证状态.textContent = '验证成功！正在进入管理后台...';
+                        Elements.验证状态.classList.add('text-green-500');
+                        
+                        // 保存令牌
+                        localStorage.setItem('githubToken', token);
+                        State.isAuthenticated = true;
+                        
+                        // 关闭验证模态框
+                        setTimeout(() => {
+                            Elements.github验证模态框.style.display = 'none';
+                            Elements.githubTokenInput.value = '';
+                            Elements.验证状态.classList.add('hidden');
+                            
+                            // 显示管理后台
+                            Elements.后台管理模态框.style.display = 'block';
+                            AdminPanel.init();
+                        }, 1000);
+                    } else {
+                        // 验证失败
+                        Elements.验证状态.textContent = '验证失败，请检查令牌是否正确';
+                        Elements.验证状态.classList.add('text-red-500');
+                        State.githubToken = null;
+                    }
+                } catch (error) {
+                    console.error('验证令牌时发生错误:', error);
+                    Elements.验证状态.textContent = '验证时发生错误: ' + error.message;
+                    Elements.验证状态.classList.add('text-red-500');
+                    State.githubToken = null;
+                }
+            });
+            
+            // 管理菜单切换
+            Elements.adminMenuItems.forEach(item => {
+                if (item.dataset.section) {
+                    item.addEventListener('click', () => {
+                        AdminPanel.switchMenu(item.dataset.section);
+                    });
+                }
+            });
+            
+            // 发布文章按钮
+            Elements.发布文章按钮.addEventListener('click', () => {
+                const title = Elements.articleTitleInput.value.trim();
+                const content = Elements.articleEditor.value.trim();
+                
+                // 获取选中的分类
+                const selectedCategories = Array.from(
+                    document.querySelectorAll('#category-selector input[type="checkbox"]:checked')
+                ).map(checkbox => parseInt(checkbox.value, 10));
+                
+                ArticleManager.publishArticle(title, content, selectedCategories);
+            });
+            
+            // 添加分类按钮
+            Elements.addCategoryBtn.addEventListener('click', () => {
+                const categoryName = Elements.newCategoryName.value.trim();
+                CategoryManager.addCategory(categoryName);
+                Elements.newCategoryName.value = '';
+            });
+            
+            // 退出登录按钮
+            Elements.退出登录按钮.addEventListener('click', () => {
+                AdminPanel.logout();
+            });
+            
+            // 切换仓库按钮
+            Elements.切换仓库按钮.addEventListener('click', async () => {
+                Elements.后台管理模态框.style.display = 'none';
+                await showRepoSelectModal();
+            });
+            
+            // 仓库选择确认按钮
+            Elements.confirmRepoBtn.addEventListener('click', () => {
+                if (State.selectedRepo) {
+                    Utils.saveRepoInfo(State.selectedRepo.owner.login, State.selectedRepo.name);
+                    Elements.currentRepoInfo.textContent = `${State.githubOwner}/${State.githubRepo}`;
+                    Elements.repoSelectModal.style.display = 'none';
+                    
+                    // 重新加载管理界面
+                    Elements.后台管理模态框.style.display = 'block';
+                    AdminPanel.init();
+                    
+                    Utils.showStatusMessage(`已切换到仓库: ${State.githubOwner}/${State.githubRepo}`);
+                }
+            });
+        }
+
+        // 显示仓库选择模态框
+        async function showRepoSelectModal() {
+            Elements.repoSelectModal.style.display = 'block';
+            Elements.repoLoading.classList.remove('hidden');
+            Elements.repoListContainer.classList.add('hidden');
+            Elements.repoList.innerHTML = '';
+            Elements.confirmRepoBtn.disabled = true;
+            
+            try {
+                const result = await GitHubAPI.getUserRepos();
+                
+                if (result.success) {
+                    // 按名称排序，包含"philosophy"或"blog"的仓库排在前面
+                    const sortedRepos = result.repos.sort((a, b) => {
+                        const aIsBlog = /philosophy|blog/i.test(a.name);
+                        const bIsBlog = /philosophy|blog/i.test(b.name);
+                        
+                        if (aIsBlog && !bIsBlog) return -1;
+                        if (!aIsBlog && bIsBlog) return 1;
+                        return a.name.localeCompare(b.name);
+                    });
+                    
+                    // 渲染仓库列表
+                    sortedRepos.forEach(repo => {
+                        const repoEl = document.createElement('div');
+                        repoEl.className = `repo-item ${repo.full_name === `${State.githubOwner}/${State.githubRepo}` ? 'selected' : ''}`;
+                        repoEl.innerHTML = `
+                            <div class="font-bold">${repo.name}</div>
+                            <div class="text-sm text-gray-600">${repo.description || '无描述'}</div>
+                        `;
+                        
+                        repoEl.addEventListener('click', () => {
+                            // 移除其他选中状态
+                            document.querySelectorAll('.repo-item').forEach(el => 
+                                el.classList.remove('selected')
+                            );
+                            
+                            // 设置当前选中
+                            repoEl.classList.add('selected');
+                            State.selectedRepo = repo;
+                            Elements.confirmRepoBtn.disabled = false;
+                        });
+                        
+                        Elements.repoList.appendChild(repoEl);
+                    });
+                    
+                    Elements.repoLoading.classList.add('hidden');
+                    Elements.repoListContainer.classList.remove('hidden');
+                } else {
+                    Utils.showErrorLog(Elements.repoSelectError, result.error);
+                    Elements.repoLoading.classList.add('hidden');
+                    Elements.repoListContainer.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('加载仓库列表失败:', error);
+                Utils.showErrorLog(Elements.repoSelectError, error.message);
+                Elements.repoLoading.classList.add('hidden');
+                Elements.repoListContainer.classList.remove('hidden');
+            }
         }
 
         // 启动应用
@@ -1934,4 +2150,3 @@
     </script>
 </body>
 </html>
-
