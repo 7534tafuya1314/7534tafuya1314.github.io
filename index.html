@@ -40,13 +40,10 @@
   .page {
     max-width: 720px;
     margin: 0 auto;
-    padding: 44px 24px 40px;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+    padding: 20px 24px 24px;
   }
 
-  main { flex: 1; }
+  main { padding-top: 12px; }
 
   .card {
     background: var(--card);
@@ -70,8 +67,8 @@
   }
 
   footer {
-    margin-top: 40px;
-    padding-top: 20px;
+    margin-top: 24px;
+    padding-top: 16px;
     border-top: 1px solid var(--line);
     display: grid;
     gap: 8px;
@@ -79,7 +76,7 @@
   }
 
   @media (max-width: 420px) {
-    .page { padding: 28px 18px 32px; }
+    .page { padding: 16px 18px 20px; }
     .card { padding: 18px; }
   }
 </style>
